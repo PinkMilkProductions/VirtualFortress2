@@ -6,18 +6,29 @@
 #include <openvr.h>
 #include <MinHook.h>
 #include <convar.h>
-//#include <synchapi.h>
-//#include <processthreadsapi.h>
+#include <synchapi.h>
+#include <processthreadsapi.h>
 
 #pragma comment (lib, "d3d11.lib")
 #pragma comment (lib, "d3d9.lib")
 
 
 /*//*************************************************************************
-//  Current errors:		- ConCommand vrmod_init("vrmod_init", VRMOD_Init, "Starts VRMod and SteamVR.") Won't work for some fucking reason even though it fucking should
-						
-						- Code won't compile because of errors with CreateThread and WaitForSingleObject in VRMOD_Sharetexturebegin(). I'm sure this has to do with the Windows Kit include files. Maybe it'll go away if we include more Windows Kit directories
+//  Current errors:		- Code won't compile because of errors with CreateThread and WaitForSingleObject in VRMOD_Sharetexturebegin(). I'm sure this has to do with the Windows Kit include files. Maybe it'll go away if we include more Windows Kit directories
 						  Maybe it's a problem unique to Windows 10
+
+
+
+	Fixed errors:		- ConCommand vrmod_init("vrmod_init", VRMOD_Init, "Starts VRMod and SteamVR.") Won't work for some fucking reason even though it fucking should
+
+						FIX: ConCommand only works on Void functions!
+
+						- Latest error i keep getting is related to the code being Read only for some fucking reason. This is the same on my whole fucking harddrive and it keeps fucking resetting to Read only everytime i change it
+						  FUCK WHATEVER IS RESPONSIBLE FOR THIS BULLSHIT. MIGHT BE FUCKING GIT THAT'S DOING THIS SHIT
+						  UPDATE: turns out the folders aren't actually Read-only, they just seem like it. Maybe the shitty compiler doesn't know that though.
+
+						FIX: Turns out there wasn't any read-only problem. The compile errors were caused by the change in directory structure due to moving and cloning the project with git.
+							 Fixed this by deleting the project files and regenerating them with createtfmod.bat
 //*************************************************************************
 */
 
@@ -146,7 +157,7 @@ DWORD WINAPI FindCreateTexture(LPVOID lParam) {
 //*************************************************************************
 //    VRMOD_Init():		Initialize SteamVR and set some important globals
 //*************************************************************************
- int VRMOD_Init() {
+ void VRMOD_Init() {
     vr::HmdError error = vr::VRInitError_None;
 
     g_pSystem = vr::VR_Init(&error, vr::VRApplication_Scene);
@@ -191,10 +202,11 @@ DWORD WINAPI FindCreateTexture(LPVOID lParam) {
     g_horizontalOffsetRight = xoffset;
     g_verticalOffsetRight = yoffset;
 
-    return 0;
+    //return 0;
  }
 
- //ConCommand vrmod_init("vrmod_init", VRMOD_Init, "Starts VRMod and SteamVR.");
+ ConCommand vrmod_init("vrmod_init", VRMOD_Init, "Starts VRMod and SteamVR.");
+ // IMPORTANT INFO: CONCOMMAND ONLY WORKS FOR VOID FUNCTIONS!
 
 //*************************************************************************
 //    VRMOD_SetActionManifest(fileName)
