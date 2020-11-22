@@ -1,3 +1,4 @@
+#define WIN32_LEAN_AND_MEAN
 #include "cbase.h"
 #include <stdio.h>
 #include <d3d11.h>
@@ -9,17 +10,25 @@
 #include <synchapi.h>
 #include <processthreadsapi.h>
 
+#pragma comment (lib, "User32.lib")
 #pragma comment (lib, "d3d11.lib")
 #pragma comment (lib, "d3d9.lib")
 
 
 /*//*************************************************************************
-//  Current errors:		- Code won't compile because of errors with CreateThread and WaitForSingleObject in VRMOD_Sharetexturebegin(). I'm sure this has to do with the Windows Kit include files. Maybe it'll go away if we include more Windows Kit directories
-						  Maybe it's a problem unique to Windows 10
+
+	THIS BRANCH IS BASED ON THE NEW GMOD VRMOD CODE. IT DOESN'T INCLUDE MINHOOK ANYMORE! MAKE SURE TO CHECK THE NEW VRMOD CODE IF YOU ENCOUNTER ANY ERRORS!
+
+//  Current errors:		
 
 
 
-	Fixed errors:		- ConCommand vrmod_init("vrmod_init", VRMOD_Init, "Starts VRMod and SteamVR.") Won't work for some fucking reason even though it fucking should
+	Fixed errors:		- This time we have LNK2019 errors related to openvr-stuff
+
+						FIX: including openvr_api.lib to the linker and linker lib directories
+
+	
+						- ConCommand vrmod_init("vrmod_init", VRMOD_Init, "Starts VRMod and SteamVR.") Won't work for some fucking reason even though it fucking should
 
 						FIX: ConCommand only works on Void functions!
 
@@ -65,15 +74,17 @@ action                  g_actions[MAX_ACTIONS];
 int                     g_actionCount = 0;
 
 //directx
-typedef HRESULT(APIENTRY* CreateTexture) (IDirect3DDevice9*, UINT, UINT, UINT, DWORD, D3DFORMAT, D3DPOOL, IDirect3DTexture9**, HANDLE*);
-CreateTexture           g_CreateTextureOriginal = NULL;
+typedef HRESULT(APIENTRY *CreateTexture)(IDirect3DDevice9*, UINT, UINT, UINT, DWORD, D3DFORMAT, D3DPOOL, IDirect3DTexture9**, HANDLE*);
+char                    g_createTextureOrigBytes[14];
+CreateTexture           g_createTexture = NULL;
 ID3D11Device*           g_d3d11Device = NULL;
 ID3D11Texture2D*        g_d3d11Texture = NULL;
 HANDLE                  g_sharedTexture = NULL;
 DWORD_PTR               g_CreateTextureAddr = NULL;
-IDirect3DDevice9*       g_d3d9Device = NULL;
+IDirect3DDevice9*		g_pD3D9Device = NULL;
 
 //other
+typedef void*           (*CreateInterfaceFn)(const char* pName, int* pReturnCode);
 float                   g_horizontalFOVLeft = 0;
 float                   g_horizontalFOVRight = 0;
 float                   g_aspectRatioLeft = 0;
@@ -87,12 +98,13 @@ float                   g_verticalOffsetRight = 0;
 //  CreateTexture hook
 //*************************************************************************
 HRESULT APIENTRY CreateTextureHook(IDirect3DDevice9* pDevice, UINT w, UINT h, UINT levels, DWORD usage, D3DFORMAT format, D3DPOOL pool, IDirect3DTexture9** tex, HANDLE* shared_handle) {
-    if (g_sharedTexture == NULL) {
+	if (WriteProcessMemory(GetCurrentProcess(), g_createTexture, g_createTextureOrigBytes, 14, NULL) == 0)
+		MessageBoxA(NULL, "WriteProcessMemory from hook failed", "", NULL);
+	if (g_sharedTexture == NULL) {
         shared_handle = &g_sharedTexture;
         pool = D3DPOOL_DEFAULT;
-        g_d3d9Device = pDevice;
     }
-    return g_CreateTextureOriginal(pDevice, w, h, levels, usage, format, pool, tex, shared_handle);
+	return g_createTexture(pDevice, w, h, levels, usage, format, pool, tex, shared_handle);
 };
 
 //*************************************************************************
@@ -201,6 +213,18 @@ DWORD WINAPI FindCreateTexture(LPVOID lParam) {
     g_aspectRatioRight = w / h;
     g_horizontalOffsetRight = xoffset;
     g_verticalOffsetRight = yoffset;
+
+	HMODULE hMod = GetModuleHandleA("shaderapidx9.dll");
+	if (hMod == NULL) Warning("GetModuleHandleA failed");
+	CreateInterfaceFn CreateInterface = (CreateInterfaceFn)GetProcAddress(hMod, "CreateInterface");
+	if (CreateInterface == NULL) Warning("GetProcAddress failed");
+#ifdef _WIN64
+	DWORD_PTR fnAddr = ((DWORD_PTR**)CreateInterface("ShaderDevice001", NULL))[0][5];
+	g_pD3D9Device = *(IDirect3DDevice9**)(fnAddr + 8 + (*(DWORD_PTR*)(fnAddr + 3) & 0xFFFFFFFF));
+#else
+	g_pD3D9Device = **(IDirect3DDevice9***)(((DWORD_PTR**)CreateInterface("ShaderDevice001", NULL))[0][5] + 2);
+#endif
+	g_createTexture = ((CreateTexture**)g_pD3D9Device)[0][23];
 
     //return 0;
  }
@@ -471,55 +495,18 @@ int VRMOD_UpdatePosesAndActions() {
 //    VRMOD_ShareTextureBegin()
 //*************************************************************************
 int VRMOD_ShareTextureBegin() {
-    HWND activeWindow = GetActiveWindow();
-    if (activeWindow == NULL) {
-        Warning("GetActiveWindow failed");
-    }
 
-    //hiding and restoring the game window is a workaround to d3d9 CreateDevice
-    //failing on the second thread if the game is fullscreen
-    ShowWindow(activeWindow, SW_HIDE);
-    HANDLE thread = CreateThread(NULL, 0, FindCreateTexture, 0, 0, NULL);
-    if (thread == NULL) {
-        Warning("CreateThread failed");
-    }
-    WaitForSingleObject(thread, 1000);
-    ShowWindow(activeWindow, SW_RESTORE);
-    DWORD exitCode = 4;
-    GetExitCodeThread(thread, &exitCode);
-    CloseHandle(thread);
-    if (exitCode != 0) {
-        if (exitCode == 1) {
-			Warning("Direct3DCreate9 failed");
-        }
-        else if (exitCode == 2) {
-			Warning("CreateWindowA failed");
-        }
-        else if (exitCode == 3) {
-			Warning("CreateDevice failed");
-        }
-        else {
-			Warning("GetExitCodeThread failed");
-        }
-    }
+	char patch[] = "\x68\x0\x0\x0\x0\xC3\x44\x24\x04\x0\x0\x0\x0\xC3";
+	*(DWORD*)(patch + 1) = (DWORD)((DWORD_PTR)CreateTextureHook);
+#ifdef _WIN64
+	patch[5] = '\xC7';
+	*(DWORD*)(patch + 9) = (DWORD)((DWORD_PTR)CreateTextureHook >> 32);
+#endif
 
-    if (g_CreateTextureAddr == NULL) {
-		Warning("g_CreateTextureAddr is null");
-    }
-
-    g_CreateTextureOriginal = (CreateTexture)g_CreateTextureAddr;
-
-    if (MH_Initialize() != MH_OK) {
-		Warning("MH_Initialize failed");
-    }
-
-    if (MH_CreateHook((DWORD_PTR*)g_CreateTextureAddr, &CreateTextureHook, reinterpret_cast<void**>(&g_CreateTextureOriginal)) != MH_OK) {
-		Warning("MH_CreateHook failed");
-    }
-
-    if (MH_EnableHook((DWORD_PTR*)g_CreateTextureAddr) != MH_OK) {
-		Warning("MH_EnableHook failed");
-    }
+	if (ReadProcessMemory(GetCurrentProcess(), g_createTexture, g_createTextureOrigBytes, 14, NULL) == 0)
+		Warning("ReadProcessMemory failed");
+	if (WriteProcessMemory(GetCurrentProcess(), g_createTexture, patch, 14, NULL) == 0)
+		Warning("WriteProcessMemory failed");
 
     return 0;
 }
@@ -528,28 +515,16 @@ int VRMOD_ShareTextureBegin() {
 //    VRMOD_ShareTextureFinish()
 //*************************************************************************
 int VRMOD_ShareTextureFinish() {
-    if (g_sharedTexture == NULL) {
+
+	if (g_sharedTexture == NULL)
 		Warning("g_sharedTexture is null");
-    }
-
-    if (D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, NULL, NULL, D3D11_SDK_VERSION, &g_d3d11Device, NULL, NULL) != S_OK) {
+	if (D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, NULL, NULL, D3D11_SDK_VERSION, &g_d3d11Device, NULL, NULL) != S_OK)
 		Warning("D3D11CreateDevice failed");
-    }
-
-    ID3D11Resource* res;
-    if (FAILED(g_d3d11Device->OpenSharedResource(g_sharedTexture, __uuidof(ID3D11Resource), (void**)&res))) {
+	ID3D11Resource* res;
+	if (FAILED(g_d3d11Device->OpenSharedResource(g_sharedTexture, __uuidof(ID3D11Resource), (void**)&res)))
 		Warning("OpenSharedResource failed");
-    }
-
-    if (FAILED(res->QueryInterface(__uuidof(ID3D11Texture2D), (void**)&g_d3d11Texture))) {
+	if (FAILED(res->QueryInterface(__uuidof(ID3D11Texture2D), (void**)&g_d3d11Texture)))
 		Warning("QueryInterface failed");
-    }
-
-    MH_DisableHook((DWORD_PTR*)g_CreateTextureAddr);
-    MH_RemoveHook((DWORD_PTR*)g_CreateTextureAddr);
-    if (MH_Uninitialize() != MH_OK) {
-		Warning("MH_Uninitialize failed");
-    }
 
     return 0;
 }
@@ -558,38 +533,38 @@ int VRMOD_ShareTextureFinish() {
 //    VRMOD_SubmitSharedTexture()
 //*************************************************************************
 int VRMOD_SubmitSharedTexture() {
-    if (g_d3d11Texture == NULL)
-        return 0;
 
-    IDirect3DQuery9* pEventQuery = nullptr;
-    g_d3d9Device->CreateQuery(D3DQUERYTYPE_EVENT, &pEventQuery);
-    if (pEventQuery != nullptr)
-    {
-        pEventQuery->Issue(D3DISSUE_END);
-        while (pEventQuery->GetData(nullptr, 0, D3DGETDATA_FLUSH) != S_OK);
-        pEventQuery->Release();
-    }
+	if (g_d3d11Texture == NULL)
+		return 0;
 
-    vr::Texture_t vrTexture = { g_d3d11Texture, vr::TextureType_DirectX, vr::ColorSpace_Auto };
+	IDirect3DQuery9* pEventQuery = nullptr;
+	g_pD3D9Device->CreateQuery(D3DQUERYTYPE_EVENT, &pEventQuery);
+	if (pEventQuery != nullptr)
+	{
+		pEventQuery->Issue(D3DISSUE_END);
+		while (pEventQuery->GetData(nullptr, 0, D3DGETDATA_FLUSH) != S_OK);
+		pEventQuery->Release();
+	}
 
-    vr::VRTextureBounds_t textureBounds;
+	vr::Texture_t vrTexture = { g_d3d11Texture, vr::TextureType_DirectX, vr::ColorSpace_Auto };
 
-    //submit Left eye
-    textureBounds.uMin = 0.0f + g_horizontalOffsetLeft * 0.25f;
-    textureBounds.uMax = 0.5f + g_horizontalOffsetLeft * 0.25f;
-    textureBounds.vMin = 0.0f - g_verticalOffsetLeft * 0.5f;
-    textureBounds.vMax = 1.0f - g_verticalOffsetLeft * 0.5f;
+	vr::VRTextureBounds_t textureBounds;
 
-    vr::VRCompositor()->Submit(vr::EVREye::Eye_Left, &vrTexture, &textureBounds);
+	//submit Left eye
+	textureBounds.uMin = 0.0f + g_horizontalOffsetLeft * 0.25f;
+	textureBounds.uMax = 0.5f + g_horizontalOffsetLeft * 0.25f;
+	textureBounds.vMin = 0.0f - g_verticalOffsetLeft * 0.5f;
+	textureBounds.vMax = 1.0f - g_verticalOffsetLeft * 0.5f;
 
-    //submit Right eye
-    textureBounds.uMin = 0.5f + g_horizontalOffsetRight * 0.25f;
-    textureBounds.uMax = 1.0f + g_horizontalOffsetRight * 0.25f;
-    textureBounds.vMin = 0.0f - g_verticalOffsetRight * 0.5f;
-    textureBounds.vMax = 1.0f - g_verticalOffsetRight * 0.5f;
+	vr::VRCompositor()->Submit(vr::EVREye::Eye_Left, &vrTexture, &textureBounds);
 
-    vr::VRCompositor()->Submit(vr::EVREye::Eye_Right, &vrTexture, &textureBounds);
+	//submit Right eye
+	textureBounds.uMin = 0.5f + g_horizontalOffsetRight * 0.25f;
+	textureBounds.uMax = 1.0f + g_horizontalOffsetRight * 0.25f;
+	textureBounds.vMin = 0.0f - g_verticalOffsetRight * 0.5f;
+	textureBounds.vMax = 1.0f - g_verticalOffsetRight * 0.5f;
 
+	vr::VRCompositor()->Submit(vr::EVREye::Eye_Right, &vrTexture, &textureBounds);
     return 0;
 }
 
@@ -597,21 +572,20 @@ int VRMOD_SubmitSharedTexture() {
 //    VRMOD_Shutdown()
 //*************************************************************************
 int VRMOD_Shutdown() {
-    if (g_pSystem != NULL) {
-        vr::VR_Shutdown();
-        g_pSystem = NULL;
-    }
-    if (g_d3d11Device != NULL) {
-        g_d3d11Device->Release();
-        g_d3d11Device = NULL;
-    }
-    g_d3d11Texture = NULL;
-    g_sharedTexture = NULL;
-    g_CreateTextureAddr = NULL;
-    g_actionCount = 0;
-    g_actionSetCount = 0;
-    g_activeActionSetCount = 0;
-    g_d3d9Device = NULL;
+	if (g_pSystem != NULL) {
+		vr::VR_Shutdown();
+		g_pSystem = NULL;
+	}
+	if (g_d3d11Device != NULL) {
+		g_d3d11Device->Release();
+		g_d3d11Device = NULL;
+	}
+	g_d3d11Texture = NULL;
+	g_sharedTexture = NULL;
+	g_actionCount = 0;
+	g_actionSetCount = 0;
+	g_activeActionSetCount = 0;
+	g_pD3D9Device = NULL;
     return 0;
 }
 
