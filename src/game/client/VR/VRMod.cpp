@@ -5,11 +5,12 @@
 #include <d3d9.h>
 #include <Windows.h>
 #include <openvr.h>
-#include <MinHook.h>
+//#include <MinHook.h>
 #include <convar.h>
 #include <synchapi.h>
 #include <processthreadsapi.h>
 
+#pragma comment (lib, "openvr_api.lib")
 #pragma comment (lib, "User32.lib")
 #pragma comment (lib, "d3d11.lib")
 #pragma comment (lib, "d3d9.lib")
@@ -19,11 +20,24 @@
 
 	THIS BRANCH IS BASED ON THE NEW GMOD VRMOD CODE. IT DOESN'T INCLUDE MINHOOK ANYMORE! MAKE SURE TO CHECK THE NEW VRMOD CODE IF YOU ENCOUNTER ANY ERRORS!
 
-//  Current errors:		
+	Current errors:		- When we enter vrmod_init into the console:
+						  Exception thrown: read access violation.
+						  g_pD3D9Device was 0x8B000003.
+						  Seems to be caused by the last line of code in vrmod_init below. (g_createTexture = ((CreateTexture**)g_pD3D9Device)[0][23];)
+						  try googling: "directX create texture __vfptr read access violation"
 
 
 
-	Fixed errors:		- This time we have LNK2019 errors related to openvr-stuff
+	Fixed errors:		- Everything compiles but the game crashes after the bald guy valve intro. Debug mode states:
+						  "The procedure entry point VR_ShutdownInternal could not be located in the dynamic link library d:\steamlibrary....\tf_port\bin\client.dll"
+						  Possible course of action: comment out VRMOD_Shutdown and see if the game runs now. That way we can possibly isolate VRShutdown as the sole source of the problem.
+						  We could maybe also try adding all the openvr headers there are. I don't think we're using them all atm.
+
+						FIX: Replacing the openvr_api.dll (57 KB)in D:\SteamLibrary\steamapps\common\Source SDK Base 2013 Multiplayer\bin with a recent one (606 KB)downloaded from the openVR SDK.
+						The game launches now! WARNING: When starting tf2VR from steam the source SDK resets it's openvr_api.dll to the old version!
+	
+	
+						- This time we have LNK2019 errors related to openvr-stuff
 
 						FIX: including openvr_api.lib to the linker and linker lib directories
 
@@ -494,7 +508,7 @@ int VRMOD_UpdatePosesAndActions() {
 //*************************************************************************
 //    VRMOD_ShareTextureBegin()
 //*************************************************************************
-int VRMOD_ShareTextureBegin() {
+void VRMOD_ShareTextureBegin() {
 
 	char patch[] = "\x68\x0\x0\x0\x0\xC3\x44\x24\x04\x0\x0\x0\x0\xC3";
 	*(DWORD*)(patch + 1) = (DWORD)((DWORD_PTR)CreateTextureHook);
@@ -508,13 +522,15 @@ int VRMOD_ShareTextureBegin() {
 	if (WriteProcessMemory(GetCurrentProcess(), g_createTexture, patch, 14, NULL) == 0)
 		Warning("WriteProcessMemory failed");
 
-    return 0;
+    //return 0;
 }
+
+ConCommand vrmod_sharetexturebegin("vrmod_sharetexturebegin", VRMOD_ShareTextureBegin, "Only need to call this once.");
 
 //*************************************************************************
 //    VRMOD_ShareTextureFinish()
 //*************************************************************************
-int VRMOD_ShareTextureFinish() {
+void VRMOD_ShareTextureFinish() {
 
 	if (g_sharedTexture == NULL)
 		Warning("g_sharedTexture is null");
@@ -526,16 +542,19 @@ int VRMOD_ShareTextureFinish() {
 	if (FAILED(res->QueryInterface(__uuidof(ID3D11Texture2D), (void**)&g_d3d11Texture)))
 		Warning("QueryInterface failed");
 
-    return 0;
+    //return 0;
 }
+
+ConCommand vrmod_sharetexturefinish("vrmod_sharetexturefinish", VRMOD_ShareTextureFinish, "Only need to call this once.");
 
 //*************************************************************************
 //    VRMOD_SubmitSharedTexture()
 //*************************************************************************
-int VRMOD_SubmitSharedTexture() {
+void VRMOD_SubmitSharedTexture() {
 
 	if (g_d3d11Texture == NULL)
-		return 0;
+		//return 0;
+		return;
 
 	IDirect3DQuery9* pEventQuery = nullptr;
 	g_pD3D9Device->CreateQuery(D3DQUERYTYPE_EVENT, &pEventQuery);
@@ -565,13 +584,16 @@ int VRMOD_SubmitSharedTexture() {
 	textureBounds.vMax = 1.0f - g_verticalOffsetRight * 0.5f;
 
 	vr::VRCompositor()->Submit(vr::EVREye::Eye_Right, &vrTexture, &textureBounds);
-    return 0;
+    
+	//return 0;
 }
+
+ConCommand vrmod_submitsharedtexture("vrmod_submitsharedtexture", VRMOD_SubmitSharedTexture, "You need to call this every frame");
 
 //*************************************************************************
 //    VRMOD_Shutdown()
 //*************************************************************************
-int VRMOD_Shutdown() {
+void VRMOD_Shutdown() {
 	if (g_pSystem != NULL) {
 		vr::VR_Shutdown();
 		g_pSystem = NULL;
@@ -586,8 +608,10 @@ int VRMOD_Shutdown() {
 	g_actionSetCount = 0;
 	g_activeActionSetCount = 0;
 	g_pD3D9Device = NULL;
-    return 0;
+
+    // return 0;
 }
+ConCommand vrmod_shutdown("vrmod_shutdown", VRMOD_Shutdown, "Stops VRMod and SteamVR and cleans up.");
 
 
 ////*************************************************************************
