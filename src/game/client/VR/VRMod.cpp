@@ -26,6 +26,20 @@
 						  Seems to be caused by the last line of code in vrmod_init below. (g_createTexture = ((CreateTexture**)g_pD3D9Device)[0][23];)
 						  try googling: "directX create texture __vfptr read access violation"
 
+						  maker of VRMod says: "pointer to d3d9 device is probably invalid
+						  the part that retrieves it is designed for gmod so it might be wrong for other games
+						  if you have full engine source access you can get everything directly without needing such hacks anyway"
+
+						  "current method was done by searching source sdk for a list of interface names, noting the ones that are related to rendering and their .dll names, then searching the memory address space of those .dlls at runtime for references to the d3d9 device pointer (which was obtained via a different method which was used in an older version of the vrmod module), then finding a reference within the address space of a function that is exposed by the interface, so that in the end the vrmod module can just get a handle to the interface, the address of that function that uses the device pointer, and read it from there
+						  if you use the old method from an older version itll just work without having to go through all that"
+						  "the version that calls CreateDevice to get the function table for hooking createtexture"
+
+						  https://www.unknowncheats.me/forum/counterstrike-global-offensive/184753-d3d9-device.html
+
+						  google: TF2 D3D9 Device pointer
+
+						  https://www.unknowncheats.me/forum/counterstrike-global-offensive/218247-d3d.html
+
 
 
 	Fixed errors:		- Everything compiles but the game crashes after the bald guy valve intro. Debug mode states:
@@ -232,12 +246,17 @@ DWORD WINAPI FindCreateTexture(LPVOID lParam) {
 	if (hMod == NULL) Warning("GetModuleHandleA failed");
 	CreateInterfaceFn CreateInterface = (CreateInterfaceFn)GetProcAddress(hMod, "CreateInterface");
 	if (CreateInterface == NULL) Warning("GetProcAddress failed");
-#ifdef _WIN64
+	IDirect3DDevice9 * g_pD3D9Device = **(IDirect3DDevice9***)(0x7AE30000 + 0x18698C);	// DELETE THIS LINE IF IT DOESNT WORK !!!
+	//IDirect3DDevice9 * g_pD3D9Device = **(IDirect3DDevice9***)(hMod + 0x181C60);	// DELETE THIS LINE IF IT DOESNT WORK !!!
+/*#ifdef _WIN64
 	DWORD_PTR fnAddr = ((DWORD_PTR**)CreateInterface("ShaderDevice001", NULL))[0][5];
 	g_pD3D9Device = *(IDirect3DDevice9**)(fnAddr + 8 + (*(DWORD_PTR*)(fnAddr + 3) & 0xFFFFFFFF));
 #else
 	g_pD3D9Device = **(IDirect3DDevice9***)(((DWORD_PTR**)CreateInterface("ShaderDevice001", NULL))[0][5] + 2);
 #endif
+	*/
+
+
 	g_createTexture = ((CreateTexture**)g_pD3D9Device)[0][23];
 
     //return 0;
