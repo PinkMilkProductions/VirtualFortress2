@@ -5,7 +5,6 @@
 #include <d3d9.h>
 #include <Windows.h>
 #include <openvr.h>
-//#include <MinHook.h>
 #include <convar.h>
 #include <synchapi.h>
 #include <processthreadsapi.h>
@@ -20,29 +19,22 @@
 
 	THIS BRANCH IS BASED ON THE NEW GMOD VRMOD CODE. IT DOESN'T INCLUDE MINHOOK ANYMORE! MAKE SURE TO CHECK THE NEW VRMOD CODE IF YOU ENCOUNTER ANY ERRORS!
 
-	Current errors:		- When we enter vrmod_init into the console:
+	Current errors:		- I can't seem to get VRMOD_ShareTextureBegin() to work. I think it's because the patch is wrong.
+						  Catse from VRMod thinks my D3D9Device is wrong and recommends just using the older code.
+
+
+
+	Fixed errors:		- When we enter vrmod_init into the console:
 						  Exception thrown: read access violation.
 						  g_pD3D9Device was 0x8B000003.
 						  Seems to be caused by the last line of code in vrmod_init below. (g_createTexture = ((CreateTexture**)g_pD3D9Device)[0][23];)
 						  try googling: "directX create texture __vfptr read access violation"
 
-						  maker of VRMod says: "pointer to d3d9 device is probably invalid
-						  the part that retrieves it is designed for gmod so it might be wrong for other games
-						  if you have full engine source access you can get everything directly without needing such hacks anyway"
-
-						  "current method was done by searching source sdk for a list of interface names, noting the ones that are related to rendering and their .dll names, then searching the memory address space of those .dlls at runtime for references to the d3d9 device pointer (which was obtained via a different method which was used in an older version of the vrmod module), then finding a reference within the address space of a function that is exposed by the interface, so that in the end the vrmod module can just get a handle to the interface, the address of that function that uses the device pointer, and read it from there
-						  if you use the old method from an older version itll just work without having to go through all that"
-						  "the version that calls CreateDevice to get the function table for hooking createtexture"
-
-						  https://www.unknowncheats.me/forum/counterstrike-global-offensive/184753-d3d9-device.html
-
-						  google: TF2 D3D9 Device pointer
-
-						  https://www.unknowncheats.me/forum/counterstrike-global-offensive/218247-d3d.html
-
-
-
-	Fixed errors:		- Everything compiles but the game crashes after the bald guy valve intro. Debug mode states:
+						FIX: Found the correct address for the D3D9Device:
+						IDirect3DDevice9 * g_pD3D9Device = **(IDirect3DDevice9***)(0x79890000 + 0x18698C);
+	
+	
+						- Everything compiles but the game crashes after the bald guy valve intro. Debug mode states:
 						  "The procedure entry point VR_ShutdownInternal could not be located in the dynamic link library d:\steamlibrary....\tf_port\bin\client.dll"
 						  Possible course of action: comment out VRMOD_Shutdown and see if the game runs now. That way we can possibly isolate VRShutdown as the sole source of the problem.
 						  We could maybe also try adding all the openvr headers there are. I don't think we're using them all atm.
@@ -246,20 +238,8 @@ DWORD WINAPI FindCreateTexture(LPVOID lParam) {
 	if (hMod == NULL) Warning("GetModuleHandleA failed");
 	CreateInterfaceFn CreateInterface = (CreateInterfaceFn)GetProcAddress(hMod, "CreateInterface");
 	if (CreateInterface == NULL) Warning("GetProcAddress failed");
-	IDirect3DDevice9 * g_pD3D9Device = **(IDirect3DDevice9***)(0x7AE30000 + 0x18698C);	// DELETE THIS LINE IF IT DOESNT WORK !!!
-	//IDirect3DDevice9 * g_pD3D9Device = **(IDirect3DDevice9***)(hMod + 0x181C60);	// DELETE THIS LINE IF IT DOESNT WORK !!!
-/*#ifdef _WIN64
-	DWORD_PTR fnAddr = ((DWORD_PTR**)CreateInterface("ShaderDevice001", NULL))[0][5];
-	g_pD3D9Device = *(IDirect3DDevice9**)(fnAddr + 8 + (*(DWORD_PTR*)(fnAddr + 3) & 0xFFFFFFFF));
-#else
-	g_pD3D9Device = **(IDirect3DDevice9***)(((DWORD_PTR**)CreateInterface("ShaderDevice001", NULL))[0][5] + 2);
-#endif
-	*/
-
-
+	IDirect3DDevice9 * g_pD3D9Device = **(IDirect3DDevice9***)(0x79890000 + 0x18698C);	// First Hex value is the (variable) pointer to shaderapidx9.dll, second Hex is the constant offset to the D3D9Device
 	g_createTexture = ((CreateTexture**)g_pD3D9Device)[0][23];
-
-    //return 0;
  }
 
  ConCommand vrmod_init("vrmod_init", VRMOD_Init, "Starts VRMod and SteamVR.");
@@ -529,7 +509,7 @@ int VRMOD_UpdatePosesAndActions() {
 //*************************************************************************
 void VRMOD_ShareTextureBegin() {
 
-	char patch[] = "\x68\x0\x0\x0\x0\xC3\x44\x24\x04\x0\x0\x0\x0\xC3";
+	 char patch[] = "\x68\x0\x0\x0\x0\xC3\x44\x24\x04\x0\x0\x0\x0\xC3";
 	*(DWORD*)(patch + 1) = (DWORD)((DWORD_PTR)CreateTextureHook);
 #ifdef _WIN64
 	patch[5] = '\xC7';
@@ -541,7 +521,6 @@ void VRMOD_ShareTextureBegin() {
 	if (WriteProcessMemory(GetCurrentProcess(), g_createTexture, patch, 14, NULL) == 0)
 		Warning("WriteProcessMemory failed");
 
-    //return 0;
 }
 
 ConCommand vrmod_sharetexturebegin("vrmod_sharetexturebegin", VRMOD_ShareTextureBegin, "Only need to call this once.");
@@ -561,7 +540,6 @@ void VRMOD_ShareTextureFinish() {
 	if (FAILED(res->QueryInterface(__uuidof(ID3D11Texture2D), (void**)&g_d3d11Texture)))
 		Warning("QueryInterface failed");
 
-    //return 0;
 }
 
 ConCommand vrmod_sharetexturefinish("vrmod_sharetexturefinish", VRMOD_ShareTextureFinish, "Only need to call this once.");
@@ -603,8 +581,7 @@ void VRMOD_SubmitSharedTexture() {
 	textureBounds.vMax = 1.0f - g_verticalOffsetRight * 0.5f;
 
 	vr::VRCompositor()->Submit(vr::EVREye::Eye_Right, &vrTexture, &textureBounds);
-    
-	//return 0;
+
 }
 
 ConCommand vrmod_submitsharedtexture("vrmod_submitsharedtexture", VRMOD_SubmitSharedTexture, "You need to call this every frame");
@@ -628,7 +605,6 @@ void VRMOD_Shutdown() {
 	g_activeActionSetCount = 0;
 	g_pD3D9Device = NULL;
 
-    // return 0;
 }
 ConCommand vrmod_shutdown("vrmod_shutdown", VRMOD_Shutdown, "Stops VRMod and SteamVR and cleans up.");
 
