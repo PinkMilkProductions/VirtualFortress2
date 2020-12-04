@@ -8,18 +8,29 @@
 #include <convar.h>
 #include <synchapi.h>
 #include <processthreadsapi.h>
+#include <thread>
 
 #pragma comment (lib, "d3d11.lib")
 #pragma comment (lib, "d3d9.lib")
 
 
 /*//*************************************************************************
-//  Current errors:		- Code won't compile because of errors with CreateThread and WaitForSingleObject in VRMOD_Sharetexturebegin(). I'm sure this has to do with the Windows Kit include files. Maybe it'll go away if we include more Windows Kit directories
+//  Current errors:		
+
+
+
+	Fixed errors:		- Code won't compile because of errors with CreateThread and WaitForSingleObject in VRMOD_Sharetexturebegin(). I'm sure this has to do with the Windows Kit include files. Maybe it'll go away if we include more Windows Kit directories
 						  Maybe it's a problem unique to Windows 10
 
+						  POSSIBLE SOLUTIONS:  - add #include <Windows.h> to cbase.h and solve the compile errors we get after that.
+						  - nuttige link:   https://social.msdn.microsoft.com/Forums/en-US/400c5cce-d6ed-4157-908e-41d5beb1ce13/link-error-2019-missing-definitions-from-windowsh?forum=vcgeneral
 
-
-	Fixed errors:		- ConCommand vrmod_init("vrmod_init", VRMOD_Init, "Starts VRMod and SteamVR.") Won't work for some fucking reason even though it fucking should
+						FIX: Turns out there's a file named "protected_things.h". It redefined CreateThread to CreateThread__USE_VCR_MODE and WaitForSingleObject to WaitForSingleObject__USE_VCR_MODE
+							 because some parameter was defined or something that enables extra valve safety precautions. Commenting these 2 redefinitions away fixed the problem.
+							 I hope this won't come back to bite me in the ass later.
+	
+	
+						- ConCommand vrmod_init("vrmod_init", VRMOD_Init, "Starts VRMod and SteamVR.") Won't work for some fucking reason even though it fucking should
 
 						FIX: ConCommand only works on Void functions!
 

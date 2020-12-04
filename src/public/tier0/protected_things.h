@@ -249,7 +249,7 @@
 	#endif
 	#define GetKeyState			GetKeyState__USE_VCR_MODE
 
-
+/*
 	#if defined( CreateThread )
 		#undef CreateThread
 	#endif
@@ -259,6 +259,7 @@
 		#undef WaitForSingleObject
 	#endif
 	#define WaitForSingleObject	WaitForSingleObject__USE_VCR_MODE
+*/
 
 	#if defined( EnterCriticalSection )
 		#undef EnterCriticalSection

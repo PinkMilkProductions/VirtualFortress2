@@ -15,6 +15,7 @@ struct studiohdr_t;
 
 #include <stdio.h>
 #include <stdlib.h>
+//#include <Windows.h>
 
 #include <tier0/platform.h>
 #include <tier0/dbg.h>
@@ -42,6 +43,7 @@ struct studiohdr_t;
 // This is kind of ugly in that it adds a bunch of dependency where it isn't needed.
 // But on balance, the compile time is much lower (even incrementally) once the precompiled
 // headers contain these headers.
+
 #include "precache_register.h"
 #include "c_basecombatweapon.h"
 #include "c_basecombatcharacter.h"
