@@ -8,14 +8,33 @@
 #include <convar.h>
 #include <synchapi.h>
 #include <processthreadsapi.h>
+#include <isourcevirtualreality.h>
+//#include "sourcevr/isourcevirtualreality.h"
+//#include "client_virtualreality.h"
+#include <cdll_client_int.h>
 #include <thread>
-
+//#include <rendertexture.h>
+//#include <viewrender.h>
 #pragma comment (lib, "d3d11.lib")
 #pragma comment (lib, "d3d9.lib")
 
+//g_pSourceVR->GetRenderTarget(VREye_Left, RT_Color);
 
 /*//*************************************************************************
-//  Current errors:		
+//  Current errors:		- We get up to ShareTextureFinish. That one crashes the game and gives us: OpenSharedResource failedException thrown: read access violation.
+						  **res** was nullptr.
+
+						  POSSIBLE SOLUTIONS: I did some debugging and discussed the results on the Virtual Fortress 2 and VRMod Discord servers. Look on there. Catse is helping us Debug.
+
+						  We found the problem! We can't just lazily insert the sharetexture concommands into the console, we need to do this:
+						  - first you call ShareTextureBegin()
+						  - then you create a rendertarget texture with a resolution set based on the recommended resolution thet comes from SteamVR
+						  - then you call ShareTextureFinish() immediately after
+
+						  (see the VRMod lua source code for example)
+
+						  I think we can use the GetRenderTarget from isourcevirtualreality.h, but for that we need acces to the g_pSourceVR first.
+						  We can find that one also in client_virtualreality.cpp
 
 
 
@@ -481,7 +500,7 @@ int VRMOD_UpdatePosesAndActions() {
 //*************************************************************************
 //    VRMOD_ShareTextureBegin()
 //*************************************************************************
-int VRMOD_ShareTextureBegin() {
+void VRMOD_ShareTextureBegin() {
     HWND activeWindow = GetActiveWindow();
     if (activeWindow == NULL) {
         Warning("GetActiveWindow failed");
@@ -532,13 +551,15 @@ int VRMOD_ShareTextureBegin() {
 		Warning("MH_EnableHook failed");
     }
 
-    return 0;
+    //return 0;
 }
+
+ConCommand vrmod_sharetexturebegin("vrmod_sharetexturebegin", VRMOD_ShareTextureBegin, "Only need to call this once.");
 
 //*************************************************************************
 //    VRMOD_ShareTextureFinish()
 //*************************************************************************
-int VRMOD_ShareTextureFinish() {
+void VRMOD_ShareTextureFinish() {
     if (g_sharedTexture == NULL) {
 		Warning("g_sharedTexture is null");
     }
@@ -562,15 +583,17 @@ int VRMOD_ShareTextureFinish() {
 		Warning("MH_Uninitialize failed");
     }
 
-    return 0;
+    //return 0;
 }
+
+ConCommand vrmod_sharetexturefinish("vrmod_sharetexturefinish", VRMOD_ShareTextureFinish, "Only need to call this once.");
 
 //*************************************************************************
 //    VRMOD_SubmitSharedTexture()
 //*************************************************************************
-int VRMOD_SubmitSharedTexture() {
+void VRMOD_SubmitSharedTexture() {
     if (g_d3d11Texture == NULL)
-        return 0;
+        return;
 
     IDirect3DQuery9* pEventQuery = nullptr;
     g_d3d9Device->CreateQuery(D3DQUERYTYPE_EVENT, &pEventQuery);
@@ -601,13 +624,15 @@ int VRMOD_SubmitSharedTexture() {
 
     vr::VRCompositor()->Submit(vr::EVREye::Eye_Right, &vrTexture, &textureBounds);
 
-    return 0;
+    //return 0;
 }
+
+ConCommand vrmod_submitsharedtexture("vrmod_submitsharedtexture", VRMOD_SubmitSharedTexture, "You need to call this every frame");
 
 //*************************************************************************
 //    VRMOD_Shutdown()
 //*************************************************************************
-int VRMOD_Shutdown() {
+void VRMOD_Shutdown() {
     if (g_pSystem != NULL) {
         vr::VR_Shutdown();
         g_pSystem = NULL;
@@ -623,8 +648,10 @@ int VRMOD_Shutdown() {
     g_actionSetCount = 0;
     g_activeActionSetCount = 0;
     g_d3d9Device = NULL;
-    return 0;
+    //return 0;
 }
+
+ConCommand vrmod_shutdown("vrmod_shutdown", VRMOD_Shutdown, "Stops VRMod and SteamVR and cleans up.");
 
 
 ////*************************************************************************
