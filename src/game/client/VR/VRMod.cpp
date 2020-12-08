@@ -43,6 +43,15 @@
 						  I tried using pRenderContext->GetRenderTarget()  but that didn't work sadly. We need to use some other GetRenderTarget() function.
 						  I also tried just calling VRMOD_Start without any GetRenderTarget() calls but that didn't work either. All of these things give the same error as before.
 
+						  ah wait
+						  according to Catse i should actually CREATE a new RenderTarget Texture
+						  hmmm fuck, the pRenderContext method should've worked
+
+						  I FOUND SOMETHING VERY VERY PROMISING !!!!
+						  Look at this link:
+						  https://developer.valvesoftware.com/wiki/Adding_a_Dynamic_Scope
+						  Our solution could very well be CreateRenderTargetTexture(arguments) from IMaterialSystem class from imaterialsystem.h
+
 
 
 	Fixed errors:		- Code won't compile because of errors with CreateThread and WaitForSingleObject in VRMOD_Sharetexturebegin(). I'm sure this has to do with the Windows Kit include files. Maybe it'll go away if we include more Windows Kit directories
