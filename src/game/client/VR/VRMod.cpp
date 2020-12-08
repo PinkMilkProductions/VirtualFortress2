@@ -11,14 +11,18 @@
 #include <isourcevirtualreality.h>
 //#include "sourcevr/isourcevirtualreality.h"
 //#include "client_virtualreality.h"
+
+#include <imaterialsystem.h>
+//#include <iviewrender.h>
 #include <cdll_client_int.h>
 #include <thread>
 //#include <rendertexture.h>
-//#include <viewrender.h>
+#include <viewrender.h>
+
+
 #pragma comment (lib, "d3d11.lib")
 #pragma comment (lib, "d3d9.lib")
 
-//g_pSourceVR->GetRenderTarget(VREye_Left, RT_Color);
 
 /*//*************************************************************************
 //  Current errors:		- We get up to ShareTextureFinish. That one crashes the game and gives us: OpenSharedResource failedException thrown: read access violation.
@@ -35,6 +39,9 @@
 
 						  I think we can use the GetRenderTarget from isourcevirtualreality.h, but for that we need acces to the g_pSourceVR first.
 						  We can find that one also in client_virtualreality.cpp
+
+						  I tried using pRenderContext->GetRenderTarget()  but that didn't work sadly. We need to use some other GetRenderTarget() function.
+						  I also tried just calling VRMOD_Start without any GetRenderTarget() calls but that didn't work either. All of these things give the same error as before.
 
 
 
@@ -628,6 +635,19 @@ void VRMOD_SubmitSharedTexture() {
 }
 
 ConCommand vrmod_submitsharedtexture("vrmod_submitsharedtexture", VRMOD_SubmitSharedTexture, "You need to call this every frame");
+
+//*************************************************************************
+//    VRMOD_Start()
+//*************************************************************************
+void VRMOD_Start() {
+
+	VRMOD_ShareTextureBegin();
+	VRMOD_ShareTextureFinish();
+	VRMOD_SubmitSharedTexture();
+
+}
+ConCommand vrmod_start("vrmod_start", VRMOD_Start, "Finally starts VRMod");
+
 
 //*************************************************************************
 //    VRMOD_Shutdown()
