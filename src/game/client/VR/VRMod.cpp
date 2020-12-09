@@ -1,7 +1,7 @@
 #include "cbase.h"
 #include <stdio.h>
-#include <d3d11.h>
 #include <d3d9.h>
+#include <D3D11.h>
 #include <Windows.h>
 #include <openvr.h>
 #include <MinHook.h>
@@ -51,6 +51,11 @@
 						  Look at this link:
 						  https://developer.valvesoftware.com/wiki/Adding_a_Dynamic_Scope
 						  Our solution could very well be CreateRenderTargetTexture(arguments) from IMaterialSystem class from imaterialsystem.h
+
+						  I implemented that but it didn't work still. I had a great debugging sessions with Catse but besides 
+						  trying lots of things and noticing that CreateTextureHook() get's called A LOT of times, we didn't get it working.
+						  See the Discord logs for more details.
+						  We might try using CreateNamedRenderTargetTextureEx2 instead and trying out different parameters.
 
 
 
@@ -650,7 +655,13 @@ ConCommand vrmod_submitsharedtexture("vrmod_submitsharedtexture", VRMOD_SubmitSh
 //*************************************************************************
 void VRMOD_Start() {
 
+    uint32_t recommendedWidth = 0;
+    uint32_t recommendedHeight = 0;
+    g_pSystem->GetRecommendedRenderTargetSize(&recommendedWidth, &recommendedHeight);
+
+
 	VRMOD_ShareTextureBegin();
+	ITexture * RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTexture("vrmod_rt",2*recommendedWidth, recommendedHeight, RT_SIZE_OFFSCREEN, g_pMaterialSystem->GetBackBufferFormat());
 	VRMOD_ShareTextureFinish();
 	VRMOD_SubmitSharedTexture();
 
