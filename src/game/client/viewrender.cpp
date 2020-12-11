@@ -53,6 +53,7 @@
 #include "clientmode_shared.h"
 #include "sourcevr/isourcevirtualreality.h"
 #include "client_virtualreality.h"
+#include "VRMod.h"
 
 #ifdef PORTAL
 //#include "C_Portal_Player.h"
@@ -1937,6 +1938,9 @@ void CViewRender::RenderView( const CViewSetup &view, int nClearFlags, int whatT
 	}
 
 	CMatRenderContextPtr pRenderContext( materials );
+	if (VRMod_Started == 1) {
+		pRenderContext->SetRenderTarget(RenderTarget_VRMod);
+	}
 	ITexture *saveRenderTarget = pRenderContext->GetRenderTarget();
 	pRenderContext.SafeRelease(); // don't want to hold for long periods in case in a locking active share thread mode
 

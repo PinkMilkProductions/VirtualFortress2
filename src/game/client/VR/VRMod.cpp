@@ -16,8 +16,9 @@
 //#include <iviewrender.h>
 #include <cdll_client_int.h>
 #include <thread>
+#include <VRMod.h>
 //#include <rendertexture.h>
-#include <viewrender.h>
+//#include <viewrender.h>
 
 
 
@@ -139,6 +140,11 @@ float                   g_verticalOffsetRight = 0;
 
 // Extremely cheesy
 int CTH_num_calls = 0;
+//int VRMod_Started = 0;					// Declared in VRMod.h now
+//ITexture * RenderTarget_VRMod = NULL;		// Declared in VRMod.h now
+
+
+
 //*************************************************************************
 //  CreateTexture hook
 //*************************************************************************
@@ -402,12 +408,13 @@ int VRMOD_SetActionManifest(const char* fileName) {
 //*************************************************************************
 //    Lua function: VRMOD_UpdatePosesAndActions()
 //*************************************************************************
-int VRMOD_UpdatePosesAndActions() {
+void VRMOD_UpdatePosesAndActions() {
     vr::VRCompositor()->WaitGetPoses(g_poses, vr::k_unMaxTrackedDeviceCount, NULL, 0);
-    g_pInput->UpdateActionState(g_activeActionSets, sizeof(vr::VRActiveActionSet_t), g_activeActionSetCount);
-    return 0;
+  //  g_pInput->UpdateActionState(g_activeActionSets, sizeof(vr::VRActiveActionSet_t), g_activeActionSetCount);
+    //return 0;
+	return;
 }
-
+ConCommand vrmod_updateposesandactions("vrmod_updateposesandactions", VRMOD_UpdatePosesAndActions, "We need to call this once for every time we call SubmitSharedTexture so we can get focus on SteamVR or something.");
 ////*************************************************************************
 ////    Lua function: VRMOD_GetPoses()
 ////    Returns: table
@@ -675,12 +682,14 @@ void VRMOD_Start() {
 	VRMOD_ShareTextureBegin();
 	//ITexture * RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTexture("vrmod_rt",2*recommendedWidth, recommendedHeight, RT_SIZE_OFFSCREEN, g_pMaterialSystem->GetBackBufferFormat());
 	g_pMaterialSystem->BeginRenderTargetAllocation();
-	ITexture * RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTextureEx("vrmod_rt", 2 * recommendedWidth, recommendedHeight, RT_SIZE_NO_CHANGE, g_pMaterialSystem->GetBackBufferFormat(), MATERIAL_RT_DEPTH_NONE, TEXTUREFLAGS_NOMIP);
+	//ITexture * RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTextureEx("vrmod_rt", 1280, 720, RT_SIZE_NO_CHANGE, g_pMaterialSystem->GetBackBufferFormat(), MATERIAL_RT_DEPTH_SHARED, TEXTUREFLAGS_NOMIP);
+	RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTextureEx("vrmod_rt", 1280, 720, RT_SIZE_NO_CHANGE, g_pMaterialSystem->GetBackBufferFormat(), MATERIAL_RT_DEPTH_SHARED, TEXTUREFLAGS_NOMIP);
 	//g_pMaterialSystem->EndRenderTargetAllocation();
 	VRMOD_ShareTextureFinish();
 	Warning("WE FUCKING PASSED SHARETEXTUREFINISH FUCK YEAH");
-	VRMOD_SubmitSharedTexture();
+	//VRMOD_SubmitSharedTexture();
 	//g_pMaterialSystem->EndRenderTargetAllocation();
+	VRMod_Started = 1;
 
 }
 ConCommand vrmod_start("vrmod_start", VRMOD_Start, "Finally starts VRMod");
@@ -705,6 +714,7 @@ void VRMOD_Shutdown() {
     g_actionSetCount = 0;
     g_activeActionSetCount = 0;
     g_d3d9Device = NULL;
+	g_pMaterialSystem->EndRenderTargetAllocation();
     //return 0;
 }
 
@@ -744,3 +754,18 @@ ConCommand vrmod_shutdown("vrmod_shutdown", VRMOD_Shutdown, "Stops VRMod and Ste
 //    }
 //    return 1;
 //}
+
+
+//*************************************************************************
+//    VRMOD_Start()
+//*************************************************************************
+void VRMOD_TestFramesToHMD() {
+	for (uint i = 1; i < 1000; i++) {
+		VRMOD_UpdatePosesAndActions();
+		VRMOD_SubmitSharedTexture();
+		Sleep(12);
+	}
+	return;
+
+}
+ConCommand vrmod_testframestohmd("vrmod_testframestohmd", VRMOD_TestFramesToHMD, "Should send a thousand frames to the HMD");
