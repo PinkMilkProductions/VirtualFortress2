@@ -20,6 +20,9 @@
 #include <viewrender.h>
 
 
+
+
+
 #pragma comment (lib, "d3d11.lib")
 #pragma comment (lib, "d3d9.lib")
 
@@ -134,16 +137,20 @@ float                   g_horizontalOffsetRight = 0;
 float                   g_verticalOffsetLeft = 0;
 float                   g_verticalOffsetRight = 0;
 
+// Extremely cheesy
+int CTH_num_calls = 0;
 //*************************************************************************
 //  CreateTexture hook
 //*************************************************************************
 HRESULT APIENTRY CreateTextureHook(IDirect3DDevice9* pDevice, UINT w, UINT h, UINT levels, DWORD usage, D3DFORMAT format, D3DPOOL pool, IDirect3DTexture9** tex, HANDLE* shared_handle) {
-    if (g_sharedTexture == NULL) {
-        shared_handle = &g_sharedTexture;
-        pool = D3DPOOL_DEFAULT;
-        g_d3d9Device = pDevice;
-    }
-    return g_CreateTextureOriginal(pDevice, w, h, levels, usage, format, pool, tex, shared_handle);
+		CTH_num_calls++;
+		Warning("WE FUCKING EXECUTED CREATETEXTUREHOOK FUCK YEAH");
+		if (g_sharedTexture == NULL) {
+			shared_handle = &g_sharedTexture;
+			pool = D3DPOOL_DEFAULT;
+			g_d3d9Device = pDevice;
+		}
+		return g_CreateTextureOriginal(pDevice, w, h, levels, usage, format, pool, tex, shared_handle);
 };
 
 //*************************************************************************
@@ -534,7 +541,7 @@ void VRMOD_ShareTextureBegin() {
     if (thread == NULL) {
         Warning("CreateThread failed");
     }
-    WaitForSingleObject(thread, 1000);
+    WaitForSingleObject(thread, 1000);  // Needs to be at least 27 milliseconds before we start seeing CreateTextureHook() being called
     ShowWindow(activeWindow, SW_RESTORE);
     DWORD exitCode = 4;
     GetExitCodeThread(thread, &exitCode);
@@ -645,6 +652,8 @@ void VRMOD_SubmitSharedTexture() {
 
     vr::VRCompositor()->Submit(vr::EVREye::Eye_Right, &vrTexture, &textureBounds);
 
+	Warning("We have submitted a frame. Did you receive it?");
+
     //return 0;
 }
 
@@ -658,12 +667,20 @@ void VRMOD_Start() {
     uint32_t recommendedWidth = 0;
     uint32_t recommendedHeight = 0;
     g_pSystem->GetRecommendedRenderTargetSize(&recommendedWidth, &recommendedHeight);
+	uint max_dxlvl = 0;
+	uint rec_dxlvl = 0;
+	g_pMaterialSystem->GetDXLevelDefaults(max_dxlvl, rec_dxlvl);
 
 
 	VRMOD_ShareTextureBegin();
-	ITexture * RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTexture("vrmod_rt",2*recommendedWidth, recommendedHeight, RT_SIZE_OFFSCREEN, g_pMaterialSystem->GetBackBufferFormat());
+	//ITexture * RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTexture("vrmod_rt",2*recommendedWidth, recommendedHeight, RT_SIZE_OFFSCREEN, g_pMaterialSystem->GetBackBufferFormat());
+	g_pMaterialSystem->BeginRenderTargetAllocation();
+	ITexture * RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTextureEx("vrmod_rt", 2 * recommendedWidth, recommendedHeight, RT_SIZE_NO_CHANGE, g_pMaterialSystem->GetBackBufferFormat(), MATERIAL_RT_DEPTH_NONE, TEXTUREFLAGS_NOMIP);
+	//g_pMaterialSystem->EndRenderTargetAllocation();
 	VRMOD_ShareTextureFinish();
+	Warning("WE FUCKING PASSED SHARETEXTUREFINISH FUCK YEAH");
 	VRMOD_SubmitSharedTexture();
+	//g_pMaterialSystem->EndRenderTargetAllocation();
 
 }
 ConCommand vrmod_start("vrmod_start", VRMOD_Start, "Finally starts VRMod");
