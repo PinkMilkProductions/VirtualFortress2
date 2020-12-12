@@ -188,6 +188,7 @@ bool g_bRenderingScreenshot = false;
 
 // CUSTOM VRMOD VAR
 int RenderTargetIsVRMOD = 0;
+bool SecondEyeRenderPass = false;
 
 
 #define FREEZECAM_SNAPSHOT_FADE_SPEED 340
@@ -1913,8 +1914,42 @@ const char *COM_GetModDirectory();
 //			whatToDraw - 
 //-----------------------------------------------------------------------------
 // This renders the entire 3D view.
-void CViewRender::RenderView( const CViewSetup &view, int nClearFlags, int whatToDraw )
+
+//void CViewRender::RenderView( const CViewSetup &view, int nClearFlags, int whatToDraw )
+void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int whatToDraw )
 {
+	// CUSTOM VRMOD CODE
+	int width_VR = 640;
+	int height_VR = 720;
+	//if (VRMod_Started) {
+	//	width_VR = VRMOD_GetRecWidth();
+	//	height_VR = VRMOD_GetRecHeight();
+	//}
+	CViewSetup view_temp = view_const;
+	if (!SecondEyeRenderPass && VRMod_Started) {		// If we're gonna for the first eye
+		view_temp.x = 0;
+		view_temp.width = width_VR;
+		//view_temp.width = 640;
+		//view_temp.height = 720;
+		view_temp.height = height_VR;
+		view_temp.fov = g_horizontalFOVLeft;
+		view_temp.fovViewmodel = g_horizontalFOVLeft;
+		view_temp.m_flAspectRatio = g_aspectRatioLeft;
+	}
+	else if(VRMod_Started){							// If we're gonna render for the second eye
+		view_temp.x = width_VR;
+		view_temp.width = width_VR;
+		//view_temp.x = 640;
+		//view_temp.width = 640;
+		//view_temp.height = 720;
+		view_temp.height = height_VR;
+		view_temp.fov = g_horizontalFOVRight;
+		view_temp.fovViewmodel = g_horizontalFOVRight;
+		view_temp.m_flAspectRatio = g_aspectRatioRight;
+	}
+	const CViewSetup view = view_temp;
+
+
 	m_UnderWaterOverlayMaterial.Shutdown();					// underwater view will set
 
 	m_CurrentView = view;
@@ -2352,12 +2387,18 @@ void CViewRender::RenderView( const CViewSetup &view, int nClearFlags, int whatT
 	render->PopView( GetFrustum() );
 
 	// CUSTOM VRMOD CODE
-	if (VRMod_Started == 1) {
+	if (VRMod_Started == 1 && SecondEyeRenderPass) {
 		VRMOD_UpdatePosesAndActions();
 		VRMOD_SubmitSharedTexture();
 	}
 
 	g_WorldListCache.Flush();
+
+	// CUSTOM VRMOD CODE
+	SecondEyeRenderPass = !SecondEyeRenderPass;
+	if (SecondEyeRenderPass) {
+		CViewRender::RenderView(view_const, nClearFlags, whatToDraw);
+	}
 }
 
 //-----------------------------------------------------------------------------

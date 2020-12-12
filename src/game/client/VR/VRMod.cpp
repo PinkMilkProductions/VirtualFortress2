@@ -116,14 +116,16 @@ DWORD_PTR               g_CreateTextureAddr = NULL;
 IDirect3DDevice9*       g_d3d9Device = NULL;
 
 //other
-float                   g_horizontalFOVLeft = 0;
-float                   g_horizontalFOVRight = 0;
-float                   g_aspectRatioLeft = 0;
-float                   g_aspectRatioRight = 0;
+//float                   g_horizontalFOVLeft = 0;
+//float                   g_horizontalFOVRight = 0;
+//float                   g_aspectRatioLeft = 0;
+//float                   g_aspectRatioRight = 0;
 float                   g_horizontalOffsetLeft = 0;
 float                   g_horizontalOffsetRight = 0;
 float                   g_verticalOffsetLeft = 0;
 float                   g_verticalOffsetRight = 0;
+uint32_t recommendedWidth = 640;
+uint32_t recommendedHeight = 720;
 
 // Extremely cheesy
 int CTH_num_calls = 0;
@@ -317,207 +319,218 @@ int VRMOD_SetActionManifest(const char* fileName) {
 ////*************************************************************************
 ////    Lua function: VRMOD_SetActiveActionSets(name, ...)
 ////*************************************************************************
-//int VRMOD_SetActiveActionSets() {
-//    g_activeActionSetCount = 0;
-//    for (int i = 0; i < MAX_ACTIONSETS; i++) {
-//        if (LUA->GetType(i + 1) == GarrysMod::Lua::Type::STRING) {
-//            const char* actionSetName = LUA->CheckString(i + 1);
-//            int actionSetIndex = -1;
-//            for (int j = 0; j < g_actionSetCount; j++) {
-//                if (strcmp(actionSetName, g_actionSets[j].name) == 0) {
-//                    actionSetIndex = j;
-//                    break;
-//                }
-//            }
-//            if (actionSetIndex == -1) {
-//                g_pInput->GetActionSetHandle(actionSetName, &g_actionSets[g_actionSetCount].handle);
-//                memcpy(g_actionSets[g_actionSetCount].name, actionSetName, strlen(actionSetName));
-//                actionSetIndex = g_actionSetCount;
-//                g_actionSetCount++;
-//            }
-//            g_activeActionSets[g_activeActionSetCount].ulActionSet = g_actionSets[actionSetIndex].handle;
-//            g_activeActionSetCount++;
-//        }
-//        else {
-//            break;
-//        }
-//    }
-//    return 0;
-//}
+void VRMOD_SetActiveActionSets(const char* actionSetNames [MAX_ACTIONSETS]) {		// We might have converted this incorrectly from LUA to C++
+    g_activeActionSetCount = 0;
+    for (int i = 0; i < MAX_ACTIONSETS; i++) {
+        //if (LUA->GetType(i + 1) == GarrysMod::Lua::Type::STRING) {
+            //const char* actionSetName = LUA->CheckString(i + 1);
+		const char* actionSetName = actionSetNames[i + 1];
+            int actionSetIndex = -1;
+            for (int j = 0; j < g_actionSetCount; j++) {
+                if (strcmp(actionSetName, g_actionSets[j].name) == 0) {
+                    actionSetIndex = j;
+                    break;
+                }
+            }
+            if (actionSetIndex == -1) {
+                g_pInput->GetActionSetHandle(actionSetName, &g_actionSets[g_actionSetCount].handle);
+                memcpy(g_actionSets[g_actionSetCount].name, actionSetName, strlen(actionSetName));
+                actionSetIndex = g_actionSetCount;
+                g_actionSetCount++;
+            }
+            g_activeActionSets[g_activeActionSetCount].ulActionSet = g_actionSets[actionSetIndex].handle;
+            g_activeActionSetCount++;
+        //}
+        //else {
+        //    break;
+        //}
+    }
+	return;
+    //return 0;
+}
 
-////*************************************************************************
-////    Lua function: VRMOD_GetViewParameters()
-////    Returns: table
-////*************************************************************************
-//LUA_FUNCTION(VRMOD_GetViewParameters) {
-//    LUA->CreateTable();
-//
-//    LUA->PushNumber(g_horizontalFOVLeft);
-//    LUA->SetField(-2, "horizontalFOVLeft");
-//
-//    LUA->PushNumber(g_horizontalFOVRight);
-//    LUA->SetField(-2, "horizontalFOVRight");
-//
-//    LUA->PushNumber(g_aspectRatioLeft);
-//    LUA->SetField(-2, "aspectRatioLeft");
-//
-//    LUA->PushNumber(g_aspectRatioRight);
-//    LUA->SetField(-2, "aspectRatioRight");
-//
-//    uint32_t recommendedWidth = 0;
-//    uint32_t recommendedHeight = 0;
-//    g_pSystem->GetRecommendedRenderTargetSize(&recommendedWidth, &recommendedHeight);
-//
-//    LUA->PushNumber(recommendedWidth);
-//    LUA->SetField(-2, "recommendedWidth");
-//
-//    LUA->PushNumber(recommendedHeight);
-//    LUA->SetField(-2, "recommendedHeight");
-//
-//    vr::HmdMatrix34_t eyeToHeadLeft = g_pSystem->GetEyeToHeadTransform(vr::Eye_Left);
-//    vr::HmdMatrix34_t eyeToHeadRight = g_pSystem->GetEyeToHeadTransform(vr::Eye_Right);
-//    Vector eyeToHeadTransformPos;
-//    eyeToHeadTransformPos.x = eyeToHeadLeft.m[0][3];
-//    eyeToHeadTransformPos.y = eyeToHeadLeft.m[1][3];
-//    eyeToHeadTransformPos.z = eyeToHeadLeft.m[2][3];
-//    LUA->PushVector(eyeToHeadTransformPos);
-//    LUA->SetField(-2, "eyeToHeadTransformPosLeft");
-//
-//    eyeToHeadTransformPos.x = eyeToHeadRight.m[0][3];
-//    eyeToHeadTransformPos.y = eyeToHeadRight.m[1][3];
-//    eyeToHeadTransformPos.z = eyeToHeadRight.m[2][3];
-//    LUA->PushVector(eyeToHeadTransformPos);
-//    LUA->SetField(-2, "eyeToHeadTransformPosRight");
-//
-//    return 1;
-//}
+//*************************************************************************
+//    Lua function: VRMOD_GetViewParameters()
+//    Returns: table
+//*************************************************************************
+void VRMOD_GetViewParameters() {
+    /*LUA->CreateTable();
+
+    LUA->PushNumber(g_horizontalFOVLeft);
+    LUA->SetField(-2, "horizontalFOVLeft");
+
+    LUA->PushNumber(g_horizontalFOVRight);
+    LUA->SetField(-2, "horizontalFOVRight");
+
+    LUA->PushNumber(g_aspectRatioLeft);
+    LUA->SetField(-2, "aspectRatioLeft");
+
+    LUA->PushNumber(g_aspectRatioRight);
+    LUA->SetField(-2, "aspectRatioRight");
+	*/
+    //uint32_t recommendedWidth = 0;
+    //uint32_t recommendedHeight = 0;
+    g_pSystem->GetRecommendedRenderTargetSize(&recommendedWidth, &recommendedHeight);
+
+    //LUA->PushNumber(recommendedWidth);
+    //LUA->SetField(-2, "recommendedWidth");
+
+    //LUA->PushNumber(recommendedHeight);
+    //LUA->SetField(-2, "recommendedHeight");
+
+    vr::HmdMatrix34_t eyeToHeadLeft = g_pSystem->GetEyeToHeadTransform(vr::Eye_Left);
+    vr::HmdMatrix34_t eyeToHeadRight = g_pSystem->GetEyeToHeadTransform(vr::Eye_Right);
+    Vector eyeToHeadTransformPos;
+    eyeToHeadTransformPos.x = eyeToHeadLeft.m[0][3];
+    eyeToHeadTransformPos.y = eyeToHeadLeft.m[1][3];
+    eyeToHeadTransformPos.z = eyeToHeadLeft.m[2][3];
+    //LUA->PushVector(eyeToHeadTransformPos);
+    //LUA->SetField(-2, "eyeToHeadTransformPosLeft");
+
+    eyeToHeadTransformPos.x = eyeToHeadRight.m[0][3];
+    eyeToHeadTransformPos.y = eyeToHeadRight.m[1][3];
+    eyeToHeadTransformPos.z = eyeToHeadRight.m[2][3];
+    //LUA->PushVector(eyeToHeadTransformPos);
+    //LUA->SetField(-2, "eyeToHeadTransformPosRight");
+
+	return;
+    //return 1;
+}
 
 //*************************************************************************
 //    Lua function: VRMOD_UpdatePosesAndActions()
 //*************************************************************************
 void VRMOD_UpdatePosesAndActions() {
     vr::VRCompositor()->WaitGetPoses(g_poses, vr::k_unMaxTrackedDeviceCount, NULL, 0);
-  //  g_pInput->UpdateActionState(g_activeActionSets, sizeof(vr::VRActiveActionSet_t), g_activeActionSetCount);		// UNCOMMENT THIS ONCE THE OTHER FUNCTIONS ARE WORKING !!!!!!!!!!!!!!!!!
+   // g_pInput->UpdateActionState(g_activeActionSets, sizeof(vr::VRActiveActionSet_t), g_activeActionSetCount);		// UNCOMMENT THIS ONCE WE'VE GOT THE ACTION FUNCTIONS WORKING
 
 	return;
 }
-ConCommand vrmod_updateposesandactions("vrmod_updateposesandactions", VRMOD_UpdatePosesAndActions, "We need to call this once for every time we call SubmitSharedTexture so we can get focus on SteamVR or something.");
+//ConCommand vrmod_updateposesandactions("vrmod_updateposesandactions", VRMOD_UpdatePosesAndActions, "We need to call this once for every time we call SubmitSharedTexture so we can get focus on SteamVR or something.");
 ////*************************************************************************
 ////    Lua function: VRMOD_GetPoses()
 ////    Returns: table
 ////*************************************************************************
-//LUA_FUNCTION(VRMOD_GetPoses) {
-//    vr::InputPoseActionData_t poseActionData;
-//    vr::TrackedDevicePose_t pose;
-//    char poseName[MAX_STR_LEN];
-//
-//    LUA->CreateTable();
-//
-//    for (int i = -1; i < g_actionCount; i++) {
-//        //select a pose
-//        poseActionData.pose.bPoseIsValid = 0;
-//        pose.bPoseIsValid = 0;
-//        if (i == -1) {
-//            pose = g_poses[0];
-//            memcpy(poseName, "hmd", 4);
-//        }
-//        else if (strcmp(g_actions[i].type, "pose") == 0) {
-//            g_pInput->GetPoseActionData(g_actions[i].handle, vr::TrackingUniverseStanding, 0, &poseActionData, sizeof(poseActionData), vr::k_ulInvalidInputValueHandle);
-//            pose = poseActionData.pose;
-//            strcpy_s(poseName, MAX_STR_LEN, g_actions[i].name);
-//        }
-//        else {
-//            continue;
-//        }
-//        //
-//        if (pose.bPoseIsValid) {
-//
-//            vr::HmdMatrix34_t mat = pose.mDeviceToAbsoluteTracking;
-//            Vector pos;
-//            Vector vel;
-//            QAngle ang;
-//            QAngle angvel;
-//            pos.x = -mat.m[2][3];
-//            pos.y = -mat.m[0][3];
-//            pos.z = mat.m[1][3];
-//            ang.x = asin(mat.m[1][2]) * (180.0 / 3.141592654);
-//            ang.y = atan2f(mat.m[0][2], mat.m[2][2]) * (180.0 / 3.141592654);
-//            ang.z = atan2f(-mat.m[1][0], mat.m[1][1]) * (180.0 / 3.141592654);
-//            vel.x = -pose.vVelocity.v[2];
-//            vel.y = -pose.vVelocity.v[0];
-//            vel.z = pose.vVelocity.v[1];
-//            angvel.x = -pose.vAngularVelocity.v[2] * (180.0 / 3.141592654);
-//            angvel.y = -pose.vAngularVelocity.v[0] * (180.0 / 3.141592654);
-//            angvel.z = pose.vAngularVelocity.v[1] * (180.0 / 3.141592654);
-//
-//            LUA->CreateTable();
-//
-//            LUA->PushVector(pos);
-//            LUA->SetField(-2, "pos");
-//
-//            LUA->PushVector(vel);
-//            LUA->SetField(-2, "vel");
-//
-//            LUA->PushAngle(ang);
-//            LUA->SetField(-2, "ang");
-//
-//            LUA->PushAngle(angvel);
-//            LUA->SetField(-2, "angvel");
-//
-//            LUA->SetField(-2, poseName);
-//
-//        }
-//    }
-//
-//    return 1;
-//}
-//
+void VRMOD_GetPoses() {
+    vr::InputPoseActionData_t poseActionData;
+    vr::TrackedDevicePose_t pose;
+    char poseName[MAX_STR_LEN];
+
+    //LUA->CreateTable();
+
+    for (int i = -1; i < g_actionCount; i++) {
+        //select a pose
+        poseActionData.pose.bPoseIsValid = 0;
+        pose.bPoseIsValid = 0;
+        if (i == -1) {
+            pose = g_poses[0];
+            memcpy(poseName, "hmd", 4);
+        }
+        else if (strcmp(g_actions[i].type, "pose") == 0) {
+            //g_pInput->GetPoseActionData(g_actions[i].handle, vr::TrackingUniverseStanding, 0, &poseActionData, sizeof(poseActionData), vr::k_ulInvalidInputValueHandle);
+			g_pInput->GetPoseActionDataRelativeToNow(g_actions[i].handle, vr::TrackingUniverseStanding, 0, &poseActionData, sizeof(poseActionData), vr::k_ulInvalidInputValueHandle);
+            pose = poseActionData.pose;
+            strcpy_s(poseName, MAX_STR_LEN, g_actions[i].name);
+        }
+        else {
+            continue;
+        }
+        //
+        if (pose.bPoseIsValid) {
+
+            vr::HmdMatrix34_t mat = pose.mDeviceToAbsoluteTracking;
+            Vector pos;
+            Vector vel;
+            QAngle ang;
+            QAngle angvel;
+            pos.x = -mat.m[2][3];
+            pos.y = -mat.m[0][3];
+            pos.z = mat.m[1][3];
+            ang.x = asin(mat.m[1][2]) * (180.0 / 3.141592654);
+            ang.y = atan2f(mat.m[0][2], mat.m[2][2]) * (180.0 / 3.141592654);
+            ang.z = atan2f(-mat.m[1][0], mat.m[1][1]) * (180.0 / 3.141592654);
+            vel.x = -pose.vVelocity.v[2];
+            vel.y = -pose.vVelocity.v[0];
+            vel.z = pose.vVelocity.v[1];
+            angvel.x = -pose.vAngularVelocity.v[2] * (180.0 / 3.141592654);
+            angvel.y = -pose.vAngularVelocity.v[0] * (180.0 / 3.141592654);
+            angvel.z = pose.vAngularVelocity.v[1] * (180.0 / 3.141592654);
+
+            /*LUA->CreateTable();
+
+            LUA->PushVector(pos);
+            LUA->SetField(-2, "pos");
+
+            LUA->PushVector(vel);
+            LUA->SetField(-2, "vel");
+
+            LUA->PushAngle(ang);
+            LUA->SetField(-2, "ang");
+
+            LUA->PushAngle(angvel);
+            LUA->SetField(-2, "angvel");
+
+            LUA->SetField(-2, poseName);
+			*/
+        }
+    }
+
+	return;
+    //return 1;
+}
+
 ////*************************************************************************
 ////    Lua function: VRMOD_GetActions()
 ////    Returns: table
 ////*************************************************************************
-//LUA_FUNCTION(VRMOD_GetActions) {
-//    vr::InputDigitalActionData_t digitalActionData;
-//    vr::InputAnalogActionData_t analogActionData;
-//    vr::VRSkeletalSummaryData_t skeletalSummaryData;
-//
-//    LUA->CreateTable();
-//
-//    for (int i = 0; i < g_actionCount; i++) {
-//        if (strcmp(g_actions[i].type, "boolean") == 0) {
-//            LUA->PushBool((g_pInput->GetDigitalActionData(g_actions[i].handle, &digitalActionData, sizeof(digitalActionData), vr::k_ulInvalidInputValueHandle) == vr::VRInputError_None && digitalActionData.bState));
-//            LUA->SetField(-2, g_actions[i].name);
-//        }
-//        else if (strcmp(g_actions[i].type, "vector1") == 0) {
-//            g_pInput->GetAnalogActionData(g_actions[i].handle, &analogActionData, sizeof(analogActionData), vr::k_ulInvalidInputValueHandle);
-//            LUA->PushNumber(analogActionData.x);
-//            LUA->SetField(-2, g_actions[i].name);
-//        }
-//        else if (strcmp(g_actions[i].type, "vector2") == 0) {
-//            LUA->CreateTable();
-//            g_pInput->GetAnalogActionData(g_actions[i].handle, &analogActionData, sizeof(analogActionData), vr::k_ulInvalidInputValueHandle);
-//            LUA->PushNumber(analogActionData.x);
-//            LUA->SetField(-2, "x");
-//            LUA->PushNumber(analogActionData.y);
-//            LUA->SetField(-2, "y");
-//            LUA->SetField(-2, g_actions[i].name);
-//        }
-//        else if (strcmp(g_actions[i].type, "skeleton") == 0) {
-//            g_pInput->GetSkeletalSummaryData(g_actions[i].handle, &skeletalSummaryData);
-//            LUA->CreateTable();
-//            LUA->CreateTable();
-//            for (int j = 0; j < 5; j++) {
-//                LUA->PushNumber(j + 1);
-//                LUA->PushNumber(skeletalSummaryData.flFingerCurl[j]);
-//                LUA->SetTable(-3);
-//            }
-//            LUA->SetField(-2, "fingerCurls");
-//            LUA->SetField(-2, g_actions[i].name);
-//        }
-//    }
-//
-//    return 1;
-//}
+void VRMOD_GetActions() {
+    vr::InputDigitalActionData_t digitalActionData;
+    vr::InputAnalogActionData_t analogActionData;
+    vr::VRSkeletalSummaryData_t skeletalSummaryData;
+
+    //LUA->CreateTable();
+
+    for (int i = 0; i < g_actionCount; i++) {
+        if (strcmp(g_actions[i].type, "boolean") == 0) {
+            //LUA->PushBool((g_pInput->GetDigitalActionData(g_actions[i].handle, &digitalActionData, sizeof(digitalActionData), vr::k_ulInvalidInputValueHandle) == vr::VRInputError_None && digitalActionData.bState));
+			bool bool1 = (g_pInput->GetDigitalActionData(g_actions[i].handle, &digitalActionData, sizeof(digitalActionData), vr::k_ulInvalidInputValueHandle) == vr::VRInputError_None && digitalActionData.bState);
+            //LUA->SetField(-2, g_actions[i].name);
+        }
+        else if (strcmp(g_actions[i].type, "vector1") == 0) {
+            g_pInput->GetAnalogActionData(g_actions[i].handle, &analogActionData, sizeof(analogActionData), vr::k_ulInvalidInputValueHandle);
+			float float1 = analogActionData.x;
+            //LUA->PushNumber(analogActionData.x);
+            //LUA->SetField(-2, g_actions[i].name);
+        }
+        else if (strcmp(g_actions[i].type, "vector2") == 0) {
+            //LUA->CreateTable();
+            g_pInput->GetAnalogActionData(g_actions[i].handle, &analogActionData, sizeof(analogActionData), vr::k_ulInvalidInputValueHandle);
+			float float2 = analogActionData.x;
+			float float3 = analogActionData.y;
+            /*LUA->PushNumber(analogActionData.x);
+            LUA->SetField(-2, "x");
+            LUA->PushNumber(analogActionData.y);
+            LUA->SetField(-2, "y");
+            LUA->SetField(-2, g_actions[i].name);
+			*/
+        }
+       // else if (strcmp(g_actions[i].type, "skeleton") == 0) {
+        //    g_pInput->GetSkeletalSummaryData(g_actions[i].handle, &skeletalSummaryData);
+            //LUA->CreateTable();
+            //LUA->CreateTable();
+            //for (int j = 0; j < 5; j++) {
+                //LUA->PushNumber(j + 1);
+                //LUA->PushNumber(skeletalSummaryData.flFingerCurl[j]);
+                //LUA->SetTable(-3);
+           // }
+           // LUA->SetField(-2, "fingerCurls");
+           // LUA->SetField(-2, g_actions[i].name);
+        //}
+    }
+
+	return;
+    //return 1;
+}
 
 //*************************************************************************
 //    VRMOD_ShareTextureBegin()
@@ -576,7 +589,7 @@ void VRMOD_ShareTextureBegin() {
     //return 0;
 }
 
-ConCommand vrmod_sharetexturebegin("vrmod_sharetexturebegin", VRMOD_ShareTextureBegin, "Only need to call this once.");
+//ConCommand vrmod_sharetexturebegin("vrmod_sharetexturebegin", VRMOD_ShareTextureBegin, "Only need to call this once.");
 
 //*************************************************************************
 //    VRMOD_ShareTextureFinish()
@@ -608,7 +621,7 @@ void VRMOD_ShareTextureFinish() {
     //return 0;
 }
 
-ConCommand vrmod_sharetexturefinish("vrmod_sharetexturefinish", VRMOD_ShareTextureFinish, "Only need to call this once.");
+//ConCommand vrmod_sharetexturefinish("vrmod_sharetexturefinish", VRMOD_ShareTextureFinish, "Only need to call this once.");
 
 //*************************************************************************
 //    VRMOD_SubmitSharedTexture()
@@ -651,19 +664,15 @@ void VRMOD_SubmitSharedTexture() {
     //return 0;
 }
 
-ConCommand vrmod_submitsharedtexture("vrmod_submitsharedtexture", VRMOD_SubmitSharedTexture, "You need to call this every frame");
+//ConCommand vrmod_submitsharedtexture("vrmod_submitsharedtexture", VRMOD_SubmitSharedTexture, "You need to call this every frame");
 
 //*************************************************************************
 //    VRMOD_Start()
 //*************************************************************************
 void VRMOD_Start() {
-
-    uint32_t recommendedWidth = 0;
-    uint32_t recommendedHeight = 0;
+	//uint32_t recommendedWidth = 640;
+	//uint32_t recommendedHeight = 720;
     g_pSystem->GetRecommendedRenderTargetSize(&recommendedWidth, &recommendedHeight);
-	uint max_dxlvl = 0;
-	uint rec_dxlvl = 0;
-	g_pMaterialSystem->GetDXLevelDefaults(max_dxlvl, rec_dxlvl);
 
 	// Temporarily change resolution untill we can use the actual recommended resolution without messing up rendering
 	recommendedWidth = 640;
@@ -671,9 +680,11 @@ void VRMOD_Start() {
 
 	VRMOD_ShareTextureBegin();
 	//ITexture * RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTexture("vrmod_rt",2*recommendedWidth, recommendedHeight, RT_SIZE_OFFSCREEN, g_pMaterialSystem->GetBackBufferFormat());
+	//g_pMaterialSystem->SetRenderTargetFrameBufferSizeOverrides(recommendedWidth, recommendedHeight);  // We need to do this or it won't render our large VR resolutions properly
+	//materials->SetRenderTargetFrameBufferSizeOverrides(recommendedWidth, recommendedHeight);  // We need to do this or it won't render our large VR resolutions properly
 	g_pMaterialSystem->BeginRenderTargetAllocation();
 	//ITexture * RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTextureEx("vrmod_rt", 1280, 720, RT_SIZE_NO_CHANGE, g_pMaterialSystem->GetBackBufferFormat(), MATERIAL_RT_DEPTH_SHARED, TEXTUREFLAGS_NOMIP);
-	RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTextureEx("vrmod_rt", 2 * recommendedWidth, recommendedHeight, RT_SIZE_NO_CHANGE, g_pMaterialSystem->GetBackBufferFormat(), MATERIAL_RT_DEPTH_SHARED, TEXTUREFLAGS_NOMIP);
+	RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTextureEx("vrmod_rt", 2 * recommendedWidth, recommendedHeight, RT_SIZE_DEFAULT, g_pMaterialSystem->GetBackBufferFormat(), MATERIAL_RT_DEPTH_SHARED, TEXTUREFLAGS_NOMIP);
 	//g_pMaterialSystem->EndRenderTargetAllocation();
 	VRMOD_ShareTextureFinish();
 	Warning("WE FUCKING PASSED SHARETEXTUREFINISH FUCK YEAH");
@@ -716,36 +727,39 @@ ConCommand vrmod_shutdown("vrmod_shutdown", VRMOD_Shutdown, "Stops VRMod and Ste
 ////*************************************************************************
 ////    Lua function: VRMOD_TriggerHaptic(actionName, delay, duration, frequency, amplitude)
 ////*************************************************************************
-//LUA_FUNCTION(VRMOD_TriggerHaptic) {
-//    const char* actionName = LUA->CheckString(1);
-//    unsigned int nameLen = strlen(actionName);
-//    for (int i = 0; i < g_actionCount; i++) {
-//        if (strlen(g_actions[i].name) == nameLen && memcmp(g_actions[i].name, actionName, nameLen) == 0) {
-//            g_pInput->TriggerHapticVibrationAction(g_actions[i].handle, LUA->CheckNumber(2), LUA->CheckNumber(3), LUA->CheckNumber(4), LUA->CheckNumber(5), vr::k_ulInvalidInputValueHandle);
-//            break;
-//        }
-//    }
-//    return 0;
-//}
-//
+void VRMOD_TriggerHaptic(const char* actionName, float delay, float duration, float frequency, float amplitude) {
+    //const char* actionName = LUA->CheckString(1);
+    unsigned int nameLen = strlen(actionName);
+    for (int i = 0; i < g_actionCount; i++) {
+        if (strlen(g_actions[i].name) == nameLen && memcmp(g_actions[i].name, actionName, nameLen) == 0) {
+            //g_pInput->TriggerHapticVibrationAction(g_actions[i].handle, LUA->CheckNumber(2), LUA->CheckNumber(3), LUA->CheckNumber(4), LUA->CheckNumber(5), vr::k_ulInvalidInputValueHandle);
+			g_pInput->TriggerHapticVibrationAction(g_actions[i].handle, delay, duration, frequency, amplitude, vr::k_ulInvalidInputValueHandle);
+            break;
+        }
+    }
+	return;
+    //return 0;
+}
+
 ////*************************************************************************
 ////    Lua function: VRMOD_GetTrackedDeviceNames()
 ////    Returns: table
 ////*************************************************************************
-//LUA_FUNCTION(VRMOD_GetTrackedDeviceNames) {
-//    LUA->CreateTable();
-//    int tableIndex = 1;
-//    char name[MAX_STR_LEN];
-//    for (int i = 0; i < vr::k_unMaxTrackedDeviceCount; i++) {
-//        if (g_pSystem->GetStringTrackedDeviceProperty(i, vr::Prop_ControllerType_String, name, MAX_STR_LEN) > 1) {
-//            LUA->PushNumber(tableIndex);
-//            LUA->PushString(name);
-//            LUA->SetTable(-3);
-//            tableIndex++;
-//        }
-//    }
-//    return 1;
-//}
+void VRMOD_GetTrackedDeviceNames() {
+    //LUA->CreateTable();
+    int tableIndex = 1;
+    char name[MAX_STR_LEN];
+    for (int i = 0; i < vr::k_unMaxTrackedDeviceCount; i++) {
+        if (g_pSystem->GetStringTrackedDeviceProperty(i, vr::Prop_ControllerType_String, name, MAX_STR_LEN) > 1) {
+            //LUA->PushNumber(tableIndex);
+            //LUA->PushString(name);
+            //LUA->SetTable(-3);
+            tableIndex++;
+        }
+    }
+	return ;
+    //return 1;
+}
 
 
 //*************************************************************************
@@ -760,4 +774,17 @@ void VRMOD_TestFramesToHMD() {
 	return;
 
 }
-ConCommand vrmod_testframestohmd("vrmod_testframestohmd", VRMOD_TestFramesToHMD, "Should send a thousand frames to the HMD");
+//ConCommand vrmod_testframestohmd("vrmod_testframestohmd", VRMOD_TestFramesToHMD, "Should send a thousand frames to the HMD");
+
+
+int VRMOD_GetRecWidth() 
+{
+	g_pSystem->GetRecommendedRenderTargetSize(&recommendedWidth, &recommendedHeight);
+	return recommendedWidth;
+}
+
+int VRMOD_GetRecHeight()
+{
+	g_pSystem->GetRecommendedRenderTargetSize(&recommendedWidth, &recommendedHeight);
+	return recommendedHeight;
+}
