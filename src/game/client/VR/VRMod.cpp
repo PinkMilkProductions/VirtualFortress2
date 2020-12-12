@@ -29,41 +29,28 @@
 
 
 /*//*************************************************************************
-//  Current errors:		- We get up to ShareTextureFinish. That one crashes the game and gives us: OpenSharedResource failedException thrown: read access violation.
+//  Current errors:		-  /
+
+
+
+	Fixed errors:		- We get up to ShareTextureFinish. That one crashes the game and gives us: OpenSharedResource failedException thrown: read access violation.
 						  **res** was nullptr.
 
-						  POSSIBLE SOLUTIONS: I did some debugging and discussed the results on the Virtual Fortress 2 and VRMod Discord servers. Look on there. Catse is helping us Debug.
-
-						  We found the problem! We can't just lazily insert the sharetexture concommands into the console, we need to do this:
+						FIX:
 						  - first you call ShareTextureBegin()
-						  - then you create a rendertarget texture with a resolution set based on the recommended resolution thet comes from SteamVR
+						  - then you CREATE a rendertarget texture (via CreateRenderTargetTexture(arguments) from IMaterialSystem class from imaterialsystem.h)
 						  - then you call ShareTextureFinish() immediately after
 
-						  (see the VRMod lua source code for example)
-
-						  I think we can use the GetRenderTarget from isourcevirtualreality.h, but for that we need acces to the g_pSourceVR first.
-						  We can find that one also in client_virtualreality.cpp
-
-						  I tried using pRenderContext->GetRenderTarget()  but that didn't work sadly. We need to use some other GetRenderTarget() function.
-						  I also tried just calling VRMOD_Start without any GetRenderTarget() calls but that didn't work either. All of these things give the same error as before.
-
-						  ah wait
-						  according to Catse i should actually CREATE a new RenderTarget Texture
-						  hmmm fuck, the pRenderContext method should've worked
-
-						  I FOUND SOMETHING VERY VERY PROMISING !!!!
-						  Look at this link:
+						  Link that pointed us at a working solution:
 						  https://developer.valvesoftware.com/wiki/Adding_a_Dynamic_Scope
-						  Our solution could very well be CreateRenderTargetTexture(arguments) from IMaterialSystem class from imaterialsystem.h
 
-						  I implemented that but it didn't work still. I had a great debugging sessions with Catse but besides 
-						  trying lots of things and noticing that CreateTextureHook() get's called A LOT of times, we didn't get it working.
-						  See the Discord logs for more details.
-						  We might try using CreateNamedRenderTargetTextureEx2 instead and trying out different parameters.
-
+						  After that, CreateTextureHook() got called A LOT of times, we still didn't get it working.
+						  To fix that all we had to do was call g_pMaterialSystem->BeginRenderTargetAllocation(); right before creating the new RenderTarget.
+	
+	
 
 
-	Fixed errors:		- Code won't compile because of errors with CreateThread and WaitForSingleObject in VRMOD_Sharetexturebegin(). I'm sure this has to do with the Windows Kit include files. Maybe it'll go away if we include more Windows Kit directories
+						- Code won't compile because of errors with CreateThread and WaitForSingleObject in VRMOD_Sharetexturebegin(). I'm sure this has to do with the Windows Kit include files. Maybe it'll go away if we include more Windows Kit directories
 						  Maybe it's a problem unique to Windows 10
 
 						  POSSIBLE SOLUTIONS:  - add #include <Windows.h> to cbase.h and solve the compile errors we get after that.
@@ -410,8 +397,8 @@ int VRMOD_SetActionManifest(const char* fileName) {
 //*************************************************************************
 void VRMOD_UpdatePosesAndActions() {
     vr::VRCompositor()->WaitGetPoses(g_poses, vr::k_unMaxTrackedDeviceCount, NULL, 0);
-  //  g_pInput->UpdateActionState(g_activeActionSets, sizeof(vr::VRActiveActionSet_t), g_activeActionSetCount);
-    //return 0;
+  //  g_pInput->UpdateActionState(g_activeActionSets, sizeof(vr::VRActiveActionSet_t), g_activeActionSetCount);		// UNCOMMENT THIS ONCE THE OTHER FUNCTIONS ARE WORKING !!!!!!!!!!!!!!!!!
+
 	return;
 }
 ConCommand vrmod_updateposesandactions("vrmod_updateposesandactions", VRMOD_UpdatePosesAndActions, "We need to call this once for every time we call SubmitSharedTexture so we can get focus on SteamVR or something.");
@@ -659,7 +646,7 @@ void VRMOD_SubmitSharedTexture() {
 
     vr::VRCompositor()->Submit(vr::EVREye::Eye_Right, &vrTexture, &textureBounds);
 
-	Warning("We have submitted a frame. Did you receive it?");
+	//Warning("We have submitted a frame. Did you receive it?");
 
     //return 0;
 }
@@ -678,12 +665,15 @@ void VRMOD_Start() {
 	uint rec_dxlvl = 0;
 	g_pMaterialSystem->GetDXLevelDefaults(max_dxlvl, rec_dxlvl);
 
+	// Temporarily change resolution untill we can use the actual recommended resolution without messing up rendering
+	recommendedWidth = 640;
+	recommendedHeight = 720;
 
 	VRMOD_ShareTextureBegin();
 	//ITexture * RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTexture("vrmod_rt",2*recommendedWidth, recommendedHeight, RT_SIZE_OFFSCREEN, g_pMaterialSystem->GetBackBufferFormat());
 	g_pMaterialSystem->BeginRenderTargetAllocation();
 	//ITexture * RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTextureEx("vrmod_rt", 1280, 720, RT_SIZE_NO_CHANGE, g_pMaterialSystem->GetBackBufferFormat(), MATERIAL_RT_DEPTH_SHARED, TEXTUREFLAGS_NOMIP);
-	RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTextureEx("vrmod_rt", 1280, 720, RT_SIZE_NO_CHANGE, g_pMaterialSystem->GetBackBufferFormat(), MATERIAL_RT_DEPTH_SHARED, TEXTUREFLAGS_NOMIP);
+	RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTextureEx("vrmod_rt", 2 * recommendedWidth, recommendedHeight, RT_SIZE_NO_CHANGE, g_pMaterialSystem->GetBackBufferFormat(), MATERIAL_RT_DEPTH_SHARED, TEXTUREFLAGS_NOMIP);
 	//g_pMaterialSystem->EndRenderTargetAllocation();
 	VRMOD_ShareTextureFinish();
 	Warning("WE FUCKING PASSED SHARETEXTUREFINISH FUCK YEAH");
@@ -703,6 +693,8 @@ void VRMOD_Shutdown() {
         vr::VR_Shutdown();
         g_pSystem = NULL;
     }
+	VRMod_Started = 0;
+	g_pMaterialSystem->EndRenderTargetAllocation();
     if (g_d3d11Device != NULL) {
         g_d3d11Device->Release();
         g_d3d11Device = NULL;
@@ -714,7 +706,7 @@ void VRMOD_Shutdown() {
     g_actionSetCount = 0;
     g_activeActionSetCount = 0;
     g_d3d9Device = NULL;
-	g_pMaterialSystem->EndRenderTargetAllocation();
+	
     //return 0;
 }
 
@@ -757,7 +749,7 @@ ConCommand vrmod_shutdown("vrmod_shutdown", VRMOD_Shutdown, "Stops VRMod and Ste
 
 
 //*************************************************************************
-//    VRMOD_Start()
+//    VRMOD_TestFramesToHMD()
 //*************************************************************************
 void VRMOD_TestFramesToHMD() {
 	for (uint i = 1; i < 1000; i++) {

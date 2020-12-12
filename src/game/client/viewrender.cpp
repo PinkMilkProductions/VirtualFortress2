@@ -186,6 +186,9 @@ static bool	g_bRenderingView = false;			// For debugging...
 static int g_CurrentViewID = VIEW_NONE;
 bool g_bRenderingScreenshot = false;
 
+// CUSTOM VRMOD VAR
+int RenderTargetIsVRMOD = 0;
+
 
 #define FREEZECAM_SNAPSHOT_FADE_SPEED 340
 float g_flFreezeFlash = 0.0f;
@@ -1938,8 +1941,12 @@ void CViewRender::RenderView( const CViewSetup &view, int nClearFlags, int whatT
 	}
 
 	CMatRenderContextPtr pRenderContext( materials );
-	if (VRMod_Started == 1) {
+
+	// CUSTOM VRMOD IF CONDITION
+
+	if ((VRMod_Started == 1) && (RenderTargetIsVRMOD == 0)) {
 		pRenderContext->SetRenderTarget(RenderTarget_VRMod);
+		//RenderTargetIsVRMOD = 1;    // This either speeds things up or makes the renderer stop sending frames to our VR rendertarget after the first one. Come back to this later.
 	}
 	ITexture *saveRenderTarget = pRenderContext->GetRenderTarget();
 	pRenderContext.SafeRelease(); // don't want to hold for long periods in case in a locking active share thread mode
@@ -2343,6 +2350,13 @@ void CViewRender::RenderView( const CViewSetup &view, int nClearFlags, int whatT
 	}
 
 	render->PopView( GetFrustum() );
+
+	// CUSTOM VRMOD CODE
+	if (VRMod_Started == 1) {
+		VRMOD_UpdatePosesAndActions();
+		VRMOD_SubmitSharedTexture();
+	}
+
 	g_WorldListCache.Flush();
 }
 
