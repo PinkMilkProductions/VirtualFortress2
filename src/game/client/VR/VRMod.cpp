@@ -29,7 +29,16 @@
 
 
 /*//*************************************************************************
-//  Current errors:		-  /
+//  Current errors:		-  Frames sent to the HMD work perfectly fine on 720p but when we try to use the recommended HMD resolutions,
+						   the HMD frames become black with part of a white rectangle off-bounds.
+						THINGS I TRIED: 
+							1. This issue is the same wether we Use Virtual Desktop or Oculus Link
+							2. I tried overriding the framebuffer resolution successfully, frames still didn't work.
+							3. I added debugmessages. RenderTargetSize is indeed set correctly to the right resolution, frames still didn't work.
+							4. If i try calling g_pMaterialSystem->EndRenderTargetAllocation(), frames are completely black, even for 720p
+							5. I tried a boatload of flags for CreateNamedRenderTargetTextureEx. None of them fixed the problem.
+							Some are interesting though. Disabling the depth buffer for example seems to submit frames to the HMD even if not 720p,
+							but resolution still seems to be 720p and of course there's no depth anymore making you see through walls and stuff.
 
 
 
