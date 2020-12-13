@@ -29,7 +29,7 @@
 
 
 /*//*************************************************************************
-//  Current errors:		-  Frames sent to the HMD work perfectly fine on 720p but when we try to use the recommended HMD resolutions,
+//  Current issues:		-  Frames sent to the HMD work perfectly fine on 720p but when we try to use the recommended HMD resolutions,
 						   the HMD frames become black with part of a white rectangle off-bounds.
 						THINGS I TRIED: 
 							1. This issue is the same wether we Use Virtual Desktop or Oculus Link
@@ -40,9 +40,40 @@
 							Some are interesting though. Disabling the depth buffer for example seems to submit frames to the HMD even if not 720p,
 							but resolution still seems to be 720p and of course there's no depth anymore making you see through walls and stuff.
 
+						POSSIBLE SOLUTIONS:
+							Look inside void CViewRender::Render( vrect_t *rect ) in view.cpp
+							it also contains the interesting function void CViewRender::SetUpViews()
+							The following functions from pRenderContext may also be very interesting for solving this problem:
+								// Sets/gets the viewport
+							virtual void				Viewport( int x, int y, int width, int height ) = 0;
+							virtual void				GetViewport( int& x, int& y, int& width, int& height ) const = 0;
+								// Gets the window size
+							virtual void GetWindowSize( int &width, int &height ) const = 0;
+								// Sets the override sizes for all render target size tests. These replace the frame buffer size.
+
+							// Set them when you are rendering primarily to something larger than the frame buffer (as in VR mode).
+							virtual void				SetRenderTargetFrameBufferSizeOverrides( int nWidth, int nHeight ) = 0;
+
+							// Returns the (possibly overridden) framebuffer size for render target sizing.
+							virtual void				GetRenderTargetFrameBufferDimensions( int & nWidth, int & nHeight ) = 0;
 
 
-	Fixed errors:		- We get up to ShareTextureFinish. That one crashes the game and gives us: OpenSharedResource failedException thrown: read access violation.
+						abstract_class IClientRenderable van iclientrenderable.h can also be very interesting. Especially the following functions:
+							virtual bool					UsesPowerOfTwoFrameBufferTexture() = 0;
+							virtual bool					UsesFullFrameBufferTexture() = 0;
+
+
+
+
+						- When we compile the game for Release and then launch it via steam, the Source SDK 2013 Multiplayer
+						  resets it's openvr.dll to it's previous way lighter version that gives us errors.
+
+
+
+
+
+
+	Fixed issues:		- We get up to ShareTextureFinish. That one crashes the game and gives us: OpenSharedResource failedException thrown: read access violation.
 						  **res** was nullptr.
 
 						FIX:
