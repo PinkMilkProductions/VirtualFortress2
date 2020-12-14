@@ -167,22 +167,19 @@ float                   g_horizontalOffsetLeft = 0;
 float                   g_horizontalOffsetRight = 0;
 float                   g_verticalOffsetLeft = 0;
 float                   g_verticalOffsetRight = 0;
-uint32_t recommendedWidth = 640;
-uint32_t recommendedHeight = 720;
+uint32_t recommendedWidth = 960;
+uint32_t recommendedHeight = 1080;
 
-// Extremely cheesy
-int CTH_num_calls = 0;
+// Extra Virtual Fortress 2 globals
 //int VRMod_Started = 0;					// Declared in VRMod.h now
 //ITexture * RenderTarget_VRMod = NULL;		// Declared in VRMod.h now
 
 
 
 //*************************************************************************
-//  CreateTexture hook
+//  CreateTexture hook																			// converted properly for Virtual Fortress 2 now.
 //*************************************************************************
 HRESULT APIENTRY CreateTextureHook(IDirect3DDevice9* pDevice, UINT w, UINT h, UINT levels, DWORD usage, D3DFORMAT format, D3DPOOL pool, IDirect3DTexture9** tex, HANDLE* shared_handle) {
-		CTH_num_calls++;
-		Warning("WE FUCKING EXECUTED CREATETEXTUREHOOK FUCK YEAH");
 		if (g_sharedTexture == NULL) {
 			shared_handle = &g_sharedTexture;
 			pool = D3DPOOL_DEFAULT;
@@ -192,7 +189,7 @@ HRESULT APIENTRY CreateTextureHook(IDirect3DDevice9* pDevice, UINT w, UINT h, UI
 };
 
 //*************************************************************************
-//    FindCreateTexture thread
+//    FindCreateTexture thread																	// converted properly for Virtual Fortress 2 now.
 //*************************************************************************
 DWORD WINAPI FindCreateTexture(LPVOID lParam) {
     IDirect3D9* dx = Direct3DCreate9(D3D_SDK_VERSION);
@@ -251,7 +248,7 @@ DWORD WINAPI FindCreateTexture(LPVOID lParam) {
 
 
 //*************************************************************************
-//    VRMOD_Init():		Initialize SteamVR and set some important globals
+//    VRMOD_Init():		Initialize SteamVR and set some important globals						// converted properly for Virtual Fortress 2 now.
 //*************************************************************************
  void VRMOD_Init() {
     vr::HmdError error = vr::VRInitError_None;
@@ -305,7 +302,7 @@ DWORD WINAPI FindCreateTexture(LPVOID lParam) {
  // IMPORTANT INFO: CONCOMMAND ONLY WORKS FOR VOID FUNCTIONS!
 
 //*************************************************************************
-//    VRMOD_SetActionManifest(fileName)
+//    VRMOD_SetActionManifest(fileName)													// Probably converted properly for Virtual Fortress 2 now.
 //*************************************************************************
 int VRMOD_SetActionManifest(const char* fileName) {
     //const char* fileName = LUA->CheckString(1);
@@ -393,10 +390,10 @@ void VRMOD_SetActiveActionSets(const char* actionSetNames [MAX_ACTIONSETS]) {		/
 }
 
 //*************************************************************************
-//    Lua function: VRMOD_GetViewParameters()
+//    Lua function: VRMOD_GetViewParameters()											// IMPORTANT FOR HEADTRACKING !!! Properly adjusted for Virtual Fortress 2 now.
 //    Returns: table
 //*************************************************************************
-void VRMOD_GetViewParameters() {
+void VRMOD_GetViewParameters(Vector &eyeToHeadTransformPosLeft, Vector &eyeToHeadTransformPosRight) {
     /*LUA->CreateTable();
 
     LUA->PushNumber(g_horizontalFOVLeft);
@@ -423,16 +420,15 @@ void VRMOD_GetViewParameters() {
 
     vr::HmdMatrix34_t eyeToHeadLeft = g_pSystem->GetEyeToHeadTransform(vr::Eye_Left);
     vr::HmdMatrix34_t eyeToHeadRight = g_pSystem->GetEyeToHeadTransform(vr::Eye_Right);
-    Vector eyeToHeadTransformPos;
-    eyeToHeadTransformPos.x = eyeToHeadLeft.m[0][3];
-    eyeToHeadTransformPos.y = eyeToHeadLeft.m[1][3];
-    eyeToHeadTransformPos.z = eyeToHeadLeft.m[2][3];
+    eyeToHeadTransformPosLeft.x = eyeToHeadLeft.m[0][3];
+    eyeToHeadTransformPosLeft.y = eyeToHeadLeft.m[1][3];
+    eyeToHeadTransformPosLeft.z = eyeToHeadLeft.m[2][3];
     //LUA->PushVector(eyeToHeadTransformPos);
     //LUA->SetField(-2, "eyeToHeadTransformPosLeft");
 
-    eyeToHeadTransformPos.x = eyeToHeadRight.m[0][3];
-    eyeToHeadTransformPos.y = eyeToHeadRight.m[1][3];
-    eyeToHeadTransformPos.z = eyeToHeadRight.m[2][3];
+    eyeToHeadTransformPosRight.x = eyeToHeadRight.m[0][3];
+    eyeToHeadTransformPosRight.y = eyeToHeadRight.m[1][3];
+    eyeToHeadTransformPosRight.z = eyeToHeadRight.m[2][3];
     //LUA->PushVector(eyeToHeadTransformPos);
     //LUA->SetField(-2, "eyeToHeadTransformPosRight");
 
@@ -450,12 +446,15 @@ void VRMOD_UpdatePosesAndActions() {
 	return;
 }
 //ConCommand vrmod_updateposesandactions("vrmod_updateposesandactions", VRMOD_UpdatePosesAndActions, "We need to call this once for every time we call SubmitSharedTexture so we can get focus on SteamVR or something.");
+
+
+
 ////*************************************************************************
-////    Lua function: VRMOD_GetPoses()
+////    Lua function: VRMOD_GetPoses()														// IMPORTANT FOR HEADTRACKING !!!
 ////    Returns: table
 ////*************************************************************************
-void VRMOD_GetPoses() {
-    vr::InputPoseActionData_t poseActionData;
+void VRMOD_GetPoses(Vector &pos, Vector &vel, QAngle &ang, QAngle &angvel) {	// To accomodate this function's code properly maybe we need to pass (dynamic length?) arrays of these arguments?
+    vr::InputPoseActionData_t poseActionData;									// NO! We actually need to make global dynamic length array so C won't complain!
     vr::TrackedDevicePose_t pose;
     char poseName[MAX_STR_LEN];
 
@@ -482,9 +481,9 @@ void VRMOD_GetPoses() {
         if (pose.bPoseIsValid) {
 
             vr::HmdMatrix34_t mat = pose.mDeviceToAbsoluteTracking;
-            Vector pos;
-            Vector vel;
-            QAngle ang;
+            //Vector pos;
+            //Vector vel;
+            //QAngle ang;
             QAngle angvel;
             pos.x = -mat.m[2][3];
             pos.y = -mat.m[0][3];
@@ -576,7 +575,7 @@ void VRMOD_GetActions() {
 }
 
 //*************************************************************************
-//    VRMOD_ShareTextureBegin()
+//    VRMOD_ShareTextureBegin()																// converted properly for Virtual Fortress 2 now.
 //*************************************************************************
 void VRMOD_ShareTextureBegin() {
     HWND activeWindow = GetActiveWindow();
@@ -635,7 +634,7 @@ void VRMOD_ShareTextureBegin() {
 //ConCommand vrmod_sharetexturebegin("vrmod_sharetexturebegin", VRMOD_ShareTextureBegin, "Only need to call this once.");
 
 //*************************************************************************
-//    VRMOD_ShareTextureFinish()
+//    VRMOD_ShareTextureFinish()															// converted properly for Virtual Fortress 2 now.
 //*************************************************************************
 void VRMOD_ShareTextureFinish() {
     if (g_sharedTexture == NULL) {
@@ -667,7 +666,7 @@ void VRMOD_ShareTextureFinish() {
 //ConCommand vrmod_sharetexturefinish("vrmod_sharetexturefinish", VRMOD_ShareTextureFinish, "Only need to call this once.");
 
 //*************************************************************************
-//    VRMOD_SubmitSharedTexture()
+//    VRMOD_SubmitSharedTexture()																// converted properly for Virtual Fortress 2 now.
 //*************************************************************************
 void VRMOD_SubmitSharedTexture() {
     if (g_d3d11Texture == NULL)
@@ -710,7 +709,7 @@ void VRMOD_SubmitSharedTexture() {
 //ConCommand vrmod_submitsharedtexture("vrmod_submitsharedtexture", VRMOD_SubmitSharedTexture, "You need to call this every frame");
 
 //*************************************************************************
-//    VRMOD_Start()
+//    VRMOD_Start()																				// converted properly for Virtual Fortress 2 now.
 //*************************************************************************
 void VRMOD_Start() {
 	//uint32_t recommendedWidth = 640;
@@ -730,7 +729,7 @@ void VRMOD_Start() {
 	RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTextureEx("vrmod_rt", 2 * recommendedWidth, recommendedHeight, RT_SIZE_DEFAULT, g_pMaterialSystem->GetBackBufferFormat(), MATERIAL_RT_DEPTH_SHARED, TEXTUREFLAGS_NOMIP);
 	//g_pMaterialSystem->EndRenderTargetAllocation();
 	VRMOD_ShareTextureFinish();
-	Warning("WE FUCKING PASSED SHARETEXTUREFINISH FUCK YEAH");
+	//Warning("WE FUCKING PASSED SHARETEXTUREFINISH FUCK YEAH");
 	//VRMOD_SubmitSharedTexture();
 	//g_pMaterialSystem->EndRenderTargetAllocation();
 	VRMod_Started = 1;
@@ -740,7 +739,7 @@ ConCommand vrmod_start("vrmod_start", VRMOD_Start, "Finally starts VRMod");
 
 
 //*************************************************************************
-//    VRMOD_Shutdown()
+//    VRMOD_Shutdown()																			// converted properly for Virtual Fortress 2 now.
 //*************************************************************************
 void VRMOD_Shutdown() {
     if (g_pSystem != NULL) {
@@ -768,7 +767,7 @@ ConCommand vrmod_shutdown("vrmod_shutdown", VRMOD_Shutdown, "Stops VRMod and Ste
 
 
 ////*************************************************************************
-////    Lua function: VRMOD_TriggerHaptic(actionName, delay, duration, frequency, amplitude)
+////    Lua function: VRMOD_TriggerHaptic(actionName, delay, duration, frequency, amplitude)				// converted properly for Virtual Fortress 2 now.
 ////*************************************************************************
 void VRMOD_TriggerHaptic(const char* actionName, float delay, float duration, float frequency, float amplitude) {
     //const char* actionName = LUA->CheckString(1);
@@ -805,28 +804,13 @@ void VRMOD_GetTrackedDeviceNames() {
 }
 
 
-//*************************************************************************
-//    VRMOD_TestFramesToHMD()
-//*************************************************************************
-void VRMOD_TestFramesToHMD() {
-	for (uint i = 1; i < 1000; i++) {
-		VRMOD_UpdatePosesAndActions();
-		VRMOD_SubmitSharedTexture();
-		Sleep(12);
-	}
-	return;
-
-}
-//ConCommand vrmod_testframestohmd("vrmod_testframestohmd", VRMOD_TestFramesToHMD, "Should send a thousand frames to the HMD");
-
-
-int VRMOD_GetRecWidth() 
+int VRMOD_GetRecWidth()																					// works properly for Virtual Fortress 2 now.
 {
 	g_pSystem->GetRecommendedRenderTargetSize(&recommendedWidth, &recommendedHeight);
 	return recommendedWidth;
 }
 
-int VRMOD_GetRecHeight()
+int VRMOD_GetRecHeight()																				// works properly for Virtual Fortress 2 now.
 {
 	g_pSystem->GetRecommendedRenderTargetSize(&recommendedWidth, &recommendedHeight);
 	return recommendedHeight;

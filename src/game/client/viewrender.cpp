@@ -1935,6 +1935,7 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 		view_temp.fov = g_horizontalFOVLeft;
 		view_temp.fovViewmodel = g_horizontalFOVLeft;
 		view_temp.m_flAspectRatio = g_aspectRatioLeft;
+		view_temp.zNear = 6;
 	}
 	else if(VRMod_Started){							// If we're gonna render for the second eye
 		view_temp.x = width_VR;
@@ -1946,6 +1947,7 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 		view_temp.fov = g_horizontalFOVRight;
 		view_temp.fovViewmodel = g_horizontalFOVRight;
 		view_temp.m_flAspectRatio = g_aspectRatioRight;
+		view_temp.zNear = 6;
 	}
 	const CViewSetup view = view_temp;
 
