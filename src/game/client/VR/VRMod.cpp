@@ -69,6 +69,9 @@
 						  resets it's openvr.dll to it's previous way lighter version that gives us errors.
 
 
+						- Trying to load Gravelpit crashes the game for some reason. Error is in tf_mapinfomenu.cpp
+
+
 
 
 
@@ -715,8 +718,8 @@ void VRMOD_Start() {
     g_pSystem->GetRecommendedRenderTargetSize(&recommendedWidth, &recommendedHeight);
 
 	// Temporarily change resolution untill we can use the actual recommended resolution without messing up rendering
-	recommendedWidth = 640;
-	recommendedHeight = 720;
+	recommendedWidth = 960;
+	recommendedHeight = 1080;
 
 	VRMOD_ShareTextureBegin();
 	//ITexture * RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTexture("vrmod_rt",2*recommendedWidth, recommendedHeight, RT_SIZE_OFFSCREEN, g_pMaterialSystem->GetBackBufferFormat());

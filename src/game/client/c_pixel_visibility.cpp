@@ -17,6 +17,7 @@
 #include "vprof.h"
 #include "icommandline.h"
 #include "sourcevr/isourcevirtualreality.h"
+#include "VRMod.h""
 
 static void PixelvisDrawChanged( IConVar *pPixelvisVar, const char *pOld, float flOldValue );
 
@@ -430,7 +431,7 @@ void CPixelVisibilityQuery::IssueQuery( IMatRenderContext *pRenderContext, float
 		}
 	}
 #ifndef PORTAL // FIXME: In portal we query visibility multiple times per frame because of portal renders!
-	Assert ( ( m_frameIssued != gpGlobals->framecount ) || UseVR() );
+	Assert ( ( m_frameIssued != gpGlobals->framecount ) || UseVR() || (VRMod_Started == 1));
 #endif
 
 	m_frameIssued = gpGlobals->framecount;

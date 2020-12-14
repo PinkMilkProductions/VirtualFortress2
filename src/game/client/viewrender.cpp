@@ -1919,8 +1919,8 @@ const char *COM_GetModDirectory();
 void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int whatToDraw )
 {
 	// CUSTOM VRMOD CODE
-	int width_VR = 640;
-	int height_VR = 720;
+	int width_VR = 960;
+	int height_VR = 1080;
 	//if (VRMod_Started) {
 	//	width_VR = VRMOD_GetRecWidth();
 	//	height_VR = VRMOD_GetRecHeight();
@@ -2396,7 +2396,7 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 
 	// CUSTOM VRMOD CODE
 	SecondEyeRenderPass = !SecondEyeRenderPass;
-	if (SecondEyeRenderPass) {
+	if (SecondEyeRenderPass && (VRMod_Started == 1)) {
 		CViewRender::RenderView(view_const, nClearFlags, whatToDraw);
 	}
 }
