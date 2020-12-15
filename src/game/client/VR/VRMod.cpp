@@ -9,31 +9,25 @@
 #include <synchapi.h>
 #include <processthreadsapi.h>
 #include <isourcevirtualreality.h>
-//#include "sourcevr/isourcevirtualreality.h"
-//#include "client_virtualreality.h"
-
 #include <imaterialsystem.h>
-//#include <iviewrender.h>
 #include <cdll_client_int.h>
 #include <thread>
 #include <VRMod.h>
-//#include <rendertexture.h>
-//#include <viewrender.h>
-
-
-
 
 
 #pragma comment (lib, "d3d11.lib")
 #pragma comment (lib, "d3d9.lib")
 
 
-/*//*************************************************************************
+
+/*
+//*************************************************************************
 //  Current issues:		-  Frames sent to the HMD work perfectly fine on 720p but when we try to use the recommended HMD resolutions,
 						   the HMD frames become black with part of a white rectangle off-bounds.
 						THINGS I TRIED: 
 							1. This issue is the same wether we Use Virtual Desktop or Oculus Link
-							2. I tried overriding the framebuffer resolution successfully, frames still didn't work.
+							2. I tried overriding the framebuffer resolution successfully (via g_pMaterialSystem->SetRenderTargetFrameBufferSizeOverrides(recommendedWidth, recommendedHeight)
+							and same for the "materials" variable), frames still didn't work.
 							3. I added debugmessages. RenderTargetSize is indeed set correctly to the right resolution, frames still didn't work.
 							4. If i try calling g_pMaterialSystem->EndRenderTargetAllocation(), frames are completely black, even for 720p
 							5. I tried a boatload of flags for CreateNamedRenderTargetTextureEx. None of them fixed the problem.
@@ -159,10 +153,6 @@ DWORD_PTR               g_CreateTextureAddr = NULL;
 IDirect3DDevice9*       g_d3d9Device = NULL;
 
 //other
-//float                   g_horizontalFOVLeft = 0;
-//float                   g_horizontalFOVRight = 0;
-//float                   g_aspectRatioLeft = 0;
-//float                   g_aspectRatioRight = 0;
 float                   g_horizontalOffsetLeft = 0;
 float                   g_horizontalOffsetRight = 0;
 float                   g_verticalOffsetLeft = 0;
@@ -171,8 +161,7 @@ uint32_t recommendedWidth = 960;
 uint32_t recommendedHeight = 1080;
 
 // Extra Virtual Fortress 2 globals
-//int VRMod_Started = 0;					// Declared in VRMod.h now
-//ITexture * RenderTarget_VRMod = NULL;		// Declared in VRMod.h now
+int Virtual_Fortress_2_version = 1;
 
 
 
@@ -228,24 +217,16 @@ DWORD WINAPI FindCreateTexture(LPVOID lParam) {
     return 0;
 }
 
-////*************************************************************************
-////    Lua function: VRMOD_GetVersion()
-////    Returns: number
-////*************************************************************************
-//LUA_FUNCTION(VRMOD_GetVersion) {
-//    LUA->PushNumber(16);
-//    return 1;
-//}
-//
-////*************************************************************************
-////    Lua function: VRMOD_IsHMDPresent()
-////    Returns: boolean
-////*************************************************************************
-//LUA_FUNCTION(VRMOD_IsHMDPresent) {
-//    LUA->PushBool(vr::VR_IsHmdPresent());
-//    return 1;
-//}
+//*************************************************************************
+//    Lua function: VRMOD_GetVersion()
+//    Returns: number
+//*************************************************************************
+void VRMOD_GetVersion() {
+	Msg("Current Virtual Fortress 2 version is : %i", Virtual_Fortress_2_version);
+    return;
+}
 
+ConCommand vrmod_getversion("vrmod_getversion", VRMOD_GetVersion, "Returns the current version of the Virtual Fortress 2 mod.");
 
 //*************************************************************************
 //    VRMOD_Init():		Initialize SteamVR and set some important globals						// converted properly for Virtual Fortress 2 now.
@@ -295,17 +276,15 @@ DWORD WINAPI FindCreateTexture(LPVOID lParam) {
     g_horizontalOffsetRight = xoffset;
     g_verticalOffsetRight = yoffset;
 
-    //return 0;
+    return;
  }
 
  ConCommand vrmod_init("vrmod_init", VRMOD_Init, "Starts VRMod and SteamVR.");
- // IMPORTANT INFO: CONCOMMAND ONLY WORKS FOR VOID FUNCTIONS!
 
 //*************************************************************************
 //    VRMOD_SetActionManifest(fileName)													// Probably converted properly for Virtual Fortress 2 now.
 //*************************************************************************
 int VRMOD_SetActionManifest(const char* fileName) {
-    //const char* fileName = LUA->CheckString(1);
 
     char currentDir[MAX_STR_LEN];
     GetCurrentDirectory(MAX_STR_LEN, currentDir);
@@ -356,9 +335,9 @@ int VRMOD_SetActionManifest(const char* fileName) {
     return 0;
 }
 
-////*************************************************************************
-////    Lua function: VRMOD_SetActiveActionSets(name, ...)
-////*************************************************************************
+//*************************************************************************
+//    Lua function: VRMOD_SetActiveActionSets(name, ...)
+//*************************************************************************
 void VRMOD_SetActiveActionSets(const char* actionSetNames [MAX_ACTIONSETS]) {		// We might have converted this incorrectly from LUA to C++
     g_activeActionSetCount = 0;
     for (int i = 0; i < MAX_ACTIONSETS; i++) {
@@ -394,46 +373,22 @@ void VRMOD_SetActiveActionSets(const char* actionSetNames [MAX_ACTIONSETS]) {		/
 //    Returns: table
 //*************************************************************************
 void VRMOD_GetViewParameters(Vector &eyeToHeadTransformPosLeft, Vector &eyeToHeadTransformPosRight) {
-    /*LUA->CreateTable();
 
-    LUA->PushNumber(g_horizontalFOVLeft);
-    LUA->SetField(-2, "horizontalFOVLeft");
-
-    LUA->PushNumber(g_horizontalFOVRight);
-    LUA->SetField(-2, "horizontalFOVRight");
-
-    LUA->PushNumber(g_aspectRatioLeft);
-    LUA->SetField(-2, "aspectRatioLeft");
-
-    LUA->PushNumber(g_aspectRatioRight);
-    LUA->SetField(-2, "aspectRatioRight");
-	*/
     //uint32_t recommendedWidth = 0;
     //uint32_t recommendedHeight = 0;
     g_pSystem->GetRecommendedRenderTargetSize(&recommendedWidth, &recommendedHeight);
-
-    //LUA->PushNumber(recommendedWidth);
-    //LUA->SetField(-2, "recommendedWidth");
-
-    //LUA->PushNumber(recommendedHeight);
-    //LUA->SetField(-2, "recommendedHeight");
 
     vr::HmdMatrix34_t eyeToHeadLeft = g_pSystem->GetEyeToHeadTransform(vr::Eye_Left);
     vr::HmdMatrix34_t eyeToHeadRight = g_pSystem->GetEyeToHeadTransform(vr::Eye_Right);
     eyeToHeadTransformPosLeft.x = eyeToHeadLeft.m[0][3];
     eyeToHeadTransformPosLeft.y = eyeToHeadLeft.m[1][3];
     eyeToHeadTransformPosLeft.z = eyeToHeadLeft.m[2][3];
-    //LUA->PushVector(eyeToHeadTransformPos);
-    //LUA->SetField(-2, "eyeToHeadTransformPosLeft");
 
     eyeToHeadTransformPosRight.x = eyeToHeadRight.m[0][3];
     eyeToHeadTransformPosRight.y = eyeToHeadRight.m[1][3];
     eyeToHeadTransformPosRight.z = eyeToHeadRight.m[2][3];
-    //LUA->PushVector(eyeToHeadTransformPos);
-    //LUA->SetField(-2, "eyeToHeadTransformPosRight");
 
 	return;
-    //return 1;
 }
 
 //*************************************************************************
@@ -445,14 +400,13 @@ void VRMOD_UpdatePosesAndActions() {
 
 	return;
 }
-//ConCommand vrmod_updateposesandactions("vrmod_updateposesandactions", VRMOD_UpdatePosesAndActions, "We need to call this once for every time we call SubmitSharedTexture so we can get focus on SteamVR or something.");
 
 
 
-////*************************************************************************
-////    Lua function: VRMOD_GetPoses()														// IMPORTANT FOR HEADTRACKING !!!
-////    Returns: table
-////*************************************************************************
+//*************************************************************************
+//    Lua function: VRMOD_GetPoses()														// IMPORTANT FOR HEADTRACKING !!!
+//    Returns: table
+//*************************************************************************
 void VRMOD_GetPoses(Vector &pos, Vector &vel, QAngle &ang, QAngle &angvel) {	// To accomodate this function's code properly maybe we need to pass (dynamic length?) arrays of these arguments?
     vr::InputPoseActionData_t poseActionData;									// NO! We actually need to make global dynamic length array so C won't complain!
     vr::TrackedDevicePose_t pose;
@@ -477,7 +431,7 @@ void VRMOD_GetPoses(Vector &pos, Vector &vel, QAngle &ang, QAngle &angvel) {	// 
         else {
             continue;
         }
-        //
+        
         if (pose.bPoseIsValid) {
 
             vr::HmdMatrix34_t mat = pose.mDeviceToAbsoluteTracking;
@@ -628,10 +582,9 @@ void VRMOD_ShareTextureBegin() {
 		Warning("MH_EnableHook failed");
     }
 
-    //return 0;
+    return;
 }
 
-//ConCommand vrmod_sharetexturebegin("vrmod_sharetexturebegin", VRMOD_ShareTextureBegin, "Only need to call this once.");
 
 //*************************************************************************
 //    VRMOD_ShareTextureFinish()															// converted properly for Virtual Fortress 2 now.
@@ -660,10 +613,9 @@ void VRMOD_ShareTextureFinish() {
 		Warning("MH_Uninitialize failed");
     }
 
-    //return 0;
+    return;
 }
 
-//ConCommand vrmod_sharetexturefinish("vrmod_sharetexturefinish", VRMOD_ShareTextureFinish, "Only need to call this once.");
 
 //*************************************************************************
 //    VRMOD_SubmitSharedTexture()																// converted properly for Virtual Fortress 2 now.
@@ -701,37 +653,24 @@ void VRMOD_SubmitSharedTexture() {
 
     vr::VRCompositor()->Submit(vr::EVREye::Eye_Right, &vrTexture, &textureBounds);
 
-	//Warning("We have submitted a frame. Did you receive it?");
-
-    //return 0;
+    return;
 }
 
-//ConCommand vrmod_submitsharedtexture("vrmod_submitsharedtexture", VRMOD_SubmitSharedTexture, "You need to call this every frame");
 
 //*************************************************************************
 //    VRMOD_Start()																				// converted properly for Virtual Fortress 2 now.
 //*************************************************************************
 void VRMOD_Start() {
-	//uint32_t recommendedWidth = 640;
-	//uint32_t recommendedHeight = 720;
-    g_pSystem->GetRecommendedRenderTargetSize(&recommendedWidth, &recommendedHeight);
 
+    g_pSystem->GetRecommendedRenderTargetSize(&recommendedWidth, &recommendedHeight);
 	// Temporarily change resolution untill we can use the actual recommended resolution without messing up rendering
 	recommendedWidth = 960;
 	recommendedHeight = 1080;
 
 	VRMOD_ShareTextureBegin();
-	//ITexture * RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTexture("vrmod_rt",2*recommendedWidth, recommendedHeight, RT_SIZE_OFFSCREEN, g_pMaterialSystem->GetBackBufferFormat());
-	//g_pMaterialSystem->SetRenderTargetFrameBufferSizeOverrides(recommendedWidth, recommendedHeight);  // We need to do this or it won't render our large VR resolutions properly
-	//materials->SetRenderTargetFrameBufferSizeOverrides(recommendedWidth, recommendedHeight);  // We need to do this or it won't render our large VR resolutions properly
 	g_pMaterialSystem->BeginRenderTargetAllocation();
-	//ITexture * RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTextureEx("vrmod_rt", 1280, 720, RT_SIZE_NO_CHANGE, g_pMaterialSystem->GetBackBufferFormat(), MATERIAL_RT_DEPTH_SHARED, TEXTUREFLAGS_NOMIP);
 	RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTextureEx("vrmod_rt", 2 * recommendedWidth, recommendedHeight, RT_SIZE_DEFAULT, g_pMaterialSystem->GetBackBufferFormat(), MATERIAL_RT_DEPTH_SHARED, TEXTUREFLAGS_NOMIP);
-	//g_pMaterialSystem->EndRenderTargetAllocation();
 	VRMOD_ShareTextureFinish();
-	//Warning("WE FUCKING PASSED SHARETEXTUREFINISH FUCK YEAH");
-	//VRMOD_SubmitSharedTexture();
-	//g_pMaterialSystem->EndRenderTargetAllocation();
 	VRMod_Started = 1;
 
 }
@@ -760,33 +699,30 @@ void VRMOD_Shutdown() {
     g_activeActionSetCount = 0;
     g_d3d9Device = NULL;
 	
-    //return 0;
+    return;
 }
 
 ConCommand vrmod_shutdown("vrmod_shutdown", VRMOD_Shutdown, "Stops VRMod and SteamVR and cleans up.");
 
 
-////*************************************************************************
-////    Lua function: VRMOD_TriggerHaptic(actionName, delay, duration, frequency, amplitude)				// converted properly for Virtual Fortress 2 now.
-////*************************************************************************
+//*************************************************************************
+//    Lua function: VRMOD_TriggerHaptic(actionName, delay, duration, frequency, amplitude)				// converted properly for Virtual Fortress 2 now.
+//*************************************************************************
 void VRMOD_TriggerHaptic(const char* actionName, float delay, float duration, float frequency, float amplitude) {
-    //const char* actionName = LUA->CheckString(1);
     unsigned int nameLen = strlen(actionName);
     for (int i = 0; i < g_actionCount; i++) {
         if (strlen(g_actions[i].name) == nameLen && memcmp(g_actions[i].name, actionName, nameLen) == 0) {
-            //g_pInput->TriggerHapticVibrationAction(g_actions[i].handle, LUA->CheckNumber(2), LUA->CheckNumber(3), LUA->CheckNumber(4), LUA->CheckNumber(5), vr::k_ulInvalidInputValueHandle);
 			g_pInput->TriggerHapticVibrationAction(g_actions[i].handle, delay, duration, frequency, amplitude, vr::k_ulInvalidInputValueHandle);
             break;
         }
     }
 	return;
-    //return 0;
 }
 
-////*************************************************************************
-////    Lua function: VRMOD_GetTrackedDeviceNames()
-////    Returns: table
-////*************************************************************************
+//*************************************************************************
+//    Lua function: VRMOD_GetTrackedDeviceNames()
+//    Returns: table
+//*************************************************************************
 void VRMOD_GetTrackedDeviceNames() {
     //LUA->CreateTable();
     int tableIndex = 1;

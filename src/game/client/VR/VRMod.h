@@ -1,7 +1,5 @@
 #include "cbase.h"
-//#include <stdio.h>
 #include <stdint.h>
-//#include <Windows.h>
 #include <imaterialsystem.h>
 
 // Globals
@@ -11,8 +9,6 @@ float g_horizontalFOVLeft = 0;
 float g_horizontalFOVRight = 0;
 float g_aspectRatioLeft = 0;
 float g_aspectRatioRight = 0;
-//uint32_t recommendedWidth = 640;
-//uint32_t recommendedHeight = 720;
 
 
 
