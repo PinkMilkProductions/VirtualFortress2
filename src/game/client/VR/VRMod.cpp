@@ -12,6 +12,7 @@
 #include <imaterialsystem.h>
 #include <cdll_client_int.h>
 #include <thread>
+#include <vector>
 #include <VRMod.h>
 
 
@@ -157,11 +158,55 @@ float                   g_horizontalOffsetLeft = 0;
 float                   g_horizontalOffsetRight = 0;
 float                   g_verticalOffsetLeft = 0;
 float                   g_verticalOffsetRight = 0;
-uint32_t recommendedWidth = 960;
-uint32_t recommendedHeight = 1080;
+uint32_t				recommendedWidth = 960;
+uint32_t				recommendedHeight = 1080;
 
 // Extra Virtual Fortress 2 globals
 int Virtual_Fortress_2_version = 1;
+
+// Globals for VRMOD_GetPoses()	
+std::vector<Vector> TrackedDevicesPos(6);		// Vector (sort of dynamic array) with initial space for 6 tracked devices: the HMD, left controller, right controller, left foot tracker, right foot tracker, hip tracker
+std::vector<Vector> TrackedDevicesVel(6);
+std::vector<QAngle> TrackedDevicesAng(6);
+std::vector<QAngle> TrackedDevicesAngVel(6);
+
+// Globals for VRMOD_GetTrackedDeviceNames()
+std::vector<std::string> TrackedDevicesNames(6);     // Vector (sort of dynamic array) with initial space for 6 tracked devices: the HMD, left controller, right controller, left foot tracker, right foot tracker, hip tracker
+
+// Globals for VRMOD_GetActions()
+struct ActionsBoolStruct {
+	std::string ActionName;
+	bool BoolData;
+};
+
+ActionsBoolStruct ActionsBool[MAX_ACTIONS];
+
+struct ActionsVector1Struct {
+	std::string ActionName;
+	float FloatData;
+};
+
+ActionsVector1Struct ActionsVector1[MAX_ACTIONS];
+
+struct ActionsVector2Struct {
+	std::string ActionName;
+	float FloatData1;
+	float FloatData2;
+};
+
+ActionsVector2Struct ActionsVector2[MAX_ACTIONS];
+
+struct ActionsSkeletonStruct {
+	std::string ActionName;
+	float FloatFingerCurlData1;
+	float FloatFingerCurlData2;
+	float FloatFingerCurlData3;
+	float FloatFingerCurlData4;
+	float FloatFingerCurlData5;
+};
+
+ActionsSkeletonStruct ActionsSkeleton[MAX_ACTIONS];
+
 
 
 
@@ -218,7 +263,7 @@ DWORD WINAPI FindCreateTexture(LPVOID lParam) {
 }
 
 //*************************************************************************
-//    Lua function: VRMOD_GetVersion()
+//    Lua function: VRMOD_GetVersion()															// should be converted properly for Virtual Fortress 2 now
 //    Returns: number
 //*************************************************************************
 void VRMOD_GetVersion() {
@@ -336,14 +381,17 @@ int VRMOD_SetActionManifest(const char* fileName) {
 }
 
 //*************************************************************************
-//    Lua function: VRMOD_SetActiveActionSets(name, ...)
+//    Lua function: VRMOD_SetActiveActionSets(name, ...)												// Probably converted properly for Virtual Fortress 2 now.
 //*************************************************************************
-void VRMOD_SetActiveActionSets(const char* actionSetNames [MAX_ACTIONSETS]) {		// We might have converted this incorrectly from LUA to C++
+void VRMOD_SetActiveActionSets(std::string actionSetNames [MAX_ACTIONSETS]) {
     g_activeActionSetCount = 0;
     for (int i = 0; i < MAX_ACTIONSETS; i++) {
         //if (LUA->GetType(i + 1) == GarrysMod::Lua::Type::STRING) {
+		if (actionSetNames[i].c_str) {
             //const char* actionSetName = LUA->CheckString(i + 1);
-		const char* actionSetName = actionSetNames[i + 1];
+			const char* actionSetName = actionSetNames[i].c_str;
+			// Alternative version (if the above line doesn't work correctly):
+			//const char* actionSetName = actionSetNames[i + 1].c_str;
             int actionSetIndex = -1;
             for (int j = 0; j < g_actionSetCount; j++) {
                 if (strcmp(actionSetName, g_actionSets[j].name) == 0) {
@@ -359,10 +407,10 @@ void VRMOD_SetActiveActionSets(const char* actionSetNames [MAX_ACTIONSETS]) {		/
             }
             g_activeActionSets[g_activeActionSetCount].ulActionSet = g_actionSets[actionSetIndex].handle;
             g_activeActionSetCount++;
-        //}
-        //else {
-        //    break;
-        //}
+        }
+        else {
+            break;
+        }
     }
 	return;
     //return 0;
@@ -392,11 +440,11 @@ void VRMOD_GetViewParameters(Vector &eyeToHeadTransformPosLeft, Vector &eyeToHea
 }
 
 //*************************************************************************
-//    Lua function: VRMOD_UpdatePosesAndActions()
+//    Lua function: VRMOD_UpdatePosesAndActions()																	// Properly adjusted for Virtual Fortress 2 now.
 //*************************************************************************
 void VRMOD_UpdatePosesAndActions() {
     vr::VRCompositor()->WaitGetPoses(g_poses, vr::k_unMaxTrackedDeviceCount, NULL, 0);
-   // g_pInput->UpdateActionState(g_activeActionSets, sizeof(vr::VRActiveActionSet_t), g_activeActionSetCount);		// UNCOMMENT THIS ONCE WE'VE GOT THE ACTION FUNCTIONS WORKING
+    g_pInput->UpdateActionState(g_activeActionSets, sizeof(vr::VRActiveActionSet_t), g_activeActionSetCount);		// UNCOMMENT THIS ONCE WE'VE GOT THE ACTION FUNCTIONS WORKING
 
 	return;
 }
@@ -404,11 +452,12 @@ void VRMOD_UpdatePosesAndActions() {
 
 
 //*************************************************************************
-//    Lua function: VRMOD_GetPoses()														// IMPORTANT FOR HEADTRACKING !!!
+//    Lua function: VRMOD_GetPoses()														// IMPORTANT FOR HEADTRACKING !!!   Should be properly adjusted for Virtual Fortress 2 now.
 //    Returns: table
 //*************************************************************************
-void VRMOD_GetPoses(Vector &pos, Vector &vel, QAngle &ang, QAngle &angvel) {	// To accomodate this function's code properly maybe we need to pass (dynamic length?) arrays of these arguments?
-    vr::InputPoseActionData_t poseActionData;									// NO! We actually need to make global dynamic length array so C won't complain!
+void VRMOD_GetPoses() {	
+
+    vr::InputPoseActionData_t poseActionData;
     vr::TrackedDevicePose_t pose;
     char poseName[MAX_STR_LEN];
 
@@ -435,9 +484,9 @@ void VRMOD_GetPoses(Vector &pos, Vector &vel, QAngle &ang, QAngle &angvel) {	// 
         if (pose.bPoseIsValid) {
 
             vr::HmdMatrix34_t mat = pose.mDeviceToAbsoluteTracking;
-            //Vector pos;
-            //Vector vel;
-            //QAngle ang;
+            Vector pos;
+            Vector vel;
+            QAngle ang;
             QAngle angvel;
             pos.x = -mat.m[2][3];
             pos.y = -mat.m[0][3];
@@ -451,6 +500,12 @@ void VRMOD_GetPoses(Vector &pos, Vector &vel, QAngle &ang, QAngle &angvel) {	// 
             angvel.x = -pose.vAngularVelocity.v[2] * (180.0 / 3.141592654);
             angvel.y = -pose.vAngularVelocity.v[0] * (180.0 / 3.141592654);
             angvel.z = pose.vAngularVelocity.v[1] * (180.0 / 3.141592654);
+
+			// Set the globals so that we can use these results for other functions
+			TrackedDevicesPos[i+1] = pos;
+			TrackedDevicesVel[i+1] = vel;
+			TrackedDevicesAng[i+1] = ang;
+			TrackedDevicesAngVel[i+1] = angvel;
 
             /*LUA->CreateTable();
 
@@ -476,7 +531,7 @@ void VRMOD_GetPoses(Vector &pos, Vector &vel, QAngle &ang, QAngle &angvel) {	// 
 }
 
 ////*************************************************************************
-////    Lua function: VRMOD_GetActions()
+////    Lua function: VRMOD_GetActions()																	// Should be properly adjusted for Virtual Fortress 2 now.
 ////    Returns: table
 ////*************************************************************************
 void VRMOD_GetActions() {
@@ -491,12 +546,21 @@ void VRMOD_GetActions() {
             //LUA->PushBool((g_pInput->GetDigitalActionData(g_actions[i].handle, &digitalActionData, sizeof(digitalActionData), vr::k_ulInvalidInputValueHandle) == vr::VRInputError_None && digitalActionData.bState));
 			bool bool1 = (g_pInput->GetDigitalActionData(g_actions[i].handle, &digitalActionData, sizeof(digitalActionData), vr::k_ulInvalidInputValueHandle) == vr::VRInputError_None && digitalActionData.bState);
             //LUA->SetField(-2, g_actions[i].name);
+			ActionsBoolStruct MyActionsBool;
+			MyActionsBool.ActionName = g_actions[i].name;
+			MyActionsBool.BoolData = bool1;
+			ActionsBool[i] = MyActionsBool;
+
         }
         else if (strcmp(g_actions[i].type, "vector1") == 0) {
             g_pInput->GetAnalogActionData(g_actions[i].handle, &analogActionData, sizeof(analogActionData), vr::k_ulInvalidInputValueHandle);
 			float float1 = analogActionData.x;
             //LUA->PushNumber(analogActionData.x);
             //LUA->SetField(-2, g_actions[i].name);
+			ActionsVector1Struct MyActionsVector1;
+			MyActionsVector1.ActionName = g_actions[i].name;
+			MyActionsVector1.FloatData = float1;
+			ActionsVector1[i] = MyActionsVector1;
         }
         else if (strcmp(g_actions[i].type, "vector2") == 0) {
             //LUA->CreateTable();
@@ -509,22 +573,36 @@ void VRMOD_GetActions() {
             LUA->SetField(-2, "y");
             LUA->SetField(-2, g_actions[i].name);
 			*/
+			ActionsVector2Struct MyActionsVector2;
+			MyActionsVector2.ActionName = g_actions[i].name;
+			MyActionsVector2.FloatData1 = float2;
+			MyActionsVector2.FloatData2 = float3;
+			ActionsVector2[i] = MyActionsVector2;
         }
-       // else if (strcmp(g_actions[i].type, "skeleton") == 0) {
-        //    g_pInput->GetSkeletalSummaryData(g_actions[i].handle, &skeletalSummaryData);
+        else if (strcmp(g_actions[i].type, "skeleton") == 0) {
+            g_pInput->GetSkeletalSummaryData(g_actions[i].handle, vr::VRSummaryType_FromAnimation, &skeletalSummaryData);
             //LUA->CreateTable();
             //LUA->CreateTable();
+			ActionsSkeletonStruct MyActionsSkeleton;
+			MyActionsSkeleton.ActionName = g_actions[i].name;
+			MyActionsSkeleton.FloatFingerCurlData1 = skeletalSummaryData.flFingerCurl[0];
+			MyActionsSkeleton.FloatFingerCurlData2 = skeletalSummaryData.flFingerCurl[1];
+			MyActionsSkeleton.FloatFingerCurlData3 = skeletalSummaryData.flFingerCurl[2];
+			MyActionsSkeleton.FloatFingerCurlData4 = skeletalSummaryData.flFingerCurl[3];
+			MyActionsSkeleton.FloatFingerCurlData5 = skeletalSummaryData.flFingerCurl[4];
             //for (int j = 0; j < 5; j++) {
                 //LUA->PushNumber(j + 1);
                 //LUA->PushNumber(skeletalSummaryData.flFingerCurl[j]);
                 //LUA->SetTable(-3);
-           // }
+            //}
            // LUA->SetField(-2, "fingerCurls");
            // LUA->SetField(-2, g_actions[i].name);
-        //}
+			ActionsSkeleton[i] = MyActionsSkeleton;
+        }
     }
 
 	return;
+
     //return 1;
 }
 
@@ -720,19 +798,20 @@ void VRMOD_TriggerHaptic(const char* actionName, float delay, float duration, fl
 }
 
 //*************************************************************************
-//    Lua function: VRMOD_GetTrackedDeviceNames()
+//    Lua function: VRMOD_GetTrackedDeviceNames()														// Should work properly for Virtual Fortress 2 now.
 //    Returns: table
 //*************************************************************************
 void VRMOD_GetTrackedDeviceNames() {
     //LUA->CreateTable();
-    int tableIndex = 1;
+    //int tableIndex = 1;
     char name[MAX_STR_LEN];
     for (int i = 0; i < vr::k_unMaxTrackedDeviceCount; i++) {
         if (g_pSystem->GetStringTrackedDeviceProperty(i, vr::Prop_ControllerType_String, name, MAX_STR_LEN) > 1) {
             //LUA->PushNumber(tableIndex);
             //LUA->PushString(name);
             //LUA->SetTable(-3);
-            tableIndex++;
+            //tableIndex++;
+			TrackedDevicesNames[i] = name;
         }
     }
 	return ;
