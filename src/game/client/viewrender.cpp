@@ -1936,6 +1936,14 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 		view_temp.fovViewmodel = g_horizontalFOVLeft;
 		view_temp.m_flAspectRatio = g_aspectRatioLeft;
 		view_temp.zNear = 6;
+
+		view_temp.angles = VR_hmd_ang_abs;
+		Vector *VR_hmd_forward;
+		Vector *VR_hmd_right;
+		Vector *VR_hmd_up;
+		AngleVectors(VR_hmd_ang_abs,VR_hmd_forward, VR_hmd_right, VR_hmd_up);			// Get the direction vectors from the Qangle
+		view_temp.origin = VR_hmd_pos_abs + (*VR_hmd_forward * (-(eyez * VR_scale)));
+		view_temp.origin = view_temp.origin + (*VR_hmd_right * (-((ipd * VR_scale) / 2)));
 	}
 	else if(VRMod_Started){							// If we're gonna render for the second eye
 		view_temp.x = width_VR;
@@ -1948,6 +1956,14 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 		view_temp.fovViewmodel = g_horizontalFOVRight;
 		view_temp.m_flAspectRatio = g_aspectRatioRight;
 		view_temp.zNear = 6;
+
+		view_temp.angles = VR_hmd_ang_abs;
+		Vector *VR_hmd_forward;
+		Vector *VR_hmd_right;
+		Vector *VR_hmd_up;
+		AngleVectors(VR_hmd_ang_abs, VR_hmd_forward, VR_hmd_right, VR_hmd_up);			// Get the direction vectors from the Qangle
+		view_temp.origin = VR_hmd_pos_abs + (*VR_hmd_forward * (-(eyez * VR_scale)));
+		view_temp.origin = view_temp.origin + (*VR_hmd_right * (ipd * VR_scale));
 	}
 	const CViewSetup view = view_temp;
 
@@ -2391,6 +2407,7 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 	// CUSTOM VRMOD CODE
 	if (VRMod_Started == 1 && SecondEyeRenderPass) {
 		VRMOD_UpdatePosesAndActions();
+		VRMOD_UtilHandleTracking();
 		VRMOD_SubmitSharedTexture();
 	}
 

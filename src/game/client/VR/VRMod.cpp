@@ -13,7 +13,32 @@
 #include <cdll_client_int.h>
 #include <thread>
 #include <vector>
+#include "c_baseentity.h"		// Recently added for headtracking calculations
+#include "c_tf_player.h"		// Recently added for headtracking calculations
 #include <VRMod.h>
+
+// Temp testing thing
+void TestLocalPlayerEyesPos() {
+	bool test = false;
+	C_TFPlayer *pPlayertest = (C_TFPlayer *)C_BasePlayer::GetLocalPlayer();
+	Vector TestEyes;
+	float x = 0;
+	float y = 0;
+	float z = 0;
+	if (pPlayertest) {
+		TestEyes = pPlayertest->EyePosition();
+		x = TestEyes.x;
+		y = TestEyes.y;
+		z = TestEyes.z;
+	}
+
+	Msg("Value for Player Eye Position is: x = %.2f", x);
+	Msg("Value for Player Eye Position is: y = %.2f", y);
+	Msg("Value for Player Eye Position is: z = %.2f", z);
+	return ;
+}
+ConCommand testlocalplayereyespos("testlocalplayereyespos", TestLocalPlayerEyesPos, "Test GetLocalPlayer()");
+
 
 
 #pragma comment (lib, "d3d11.lib")
@@ -164,11 +189,20 @@ uint32_t				recommendedHeight = 1080;
 // Extra Virtual Fortress 2 globals
 int Virtual_Fortress_2_version = 1;
 
+// Globals for VRMOD_GetViewParameters()
+Vector eyeToHeadTransformPosLeft;
+Vector eyeToHeadTransformPosRight;
+
 // Globals for VRMOD_GetPoses()	
-std::vector<Vector> TrackedDevicesPos(6);		// Vector (sort of dynamic array) with initial space for 6 tracked devices: the HMD, left controller, right controller, left foot tracker, right foot tracker, hip tracker
-std::vector<Vector> TrackedDevicesVel(6);
-std::vector<QAngle> TrackedDevicesAng(6);
-std::vector<QAngle> TrackedDevicesAngVel(6);
+struct TrackedDevicePoseStruct {
+	std::string TrackedDeviceName;
+	Vector TrackedDevicePos;
+	Vector TrackedDeviceVel;
+	QAngle TrackedDeviceAng;
+	QAngle TrackedDeviceAngVel;
+};
+
+TrackedDevicePoseStruct TrackedDevicesPoses[vr::k_unMaxTrackedDeviceCount];
 
 // Globals for VRMOD_GetTrackedDeviceNames()
 std::vector<std::string> TrackedDevicesNames(6);     // Vector (sort of dynamic array) with initial space for 6 tracked devices: the HMD, left controller, right controller, left foot tracker, right foot tracker, hip tracker
@@ -206,6 +240,17 @@ struct ActionsSkeletonStruct {
 };
 
 ActionsSkeletonStruct ActionsSkeleton[MAX_ACTIONS];
+
+// Globals for Headtracking
+C_TFPlayer *pPlayer = (C_TFPlayer *)C_BasePlayer::GetLocalPlayer();			// The player character
+
+// These are declared in the header now
+//float VR_scale = 1;															// The VR scale used to match player real life height with the character height.
+//Vector VR_origin;															// The absolute world position of our Tracked VR origin point.
+//Vector VR_hmd_pos_abs;														// Absolute position of the HMD
+//QAngle VR_hmd_ang_abs;														// The angle the HMD makes in the global coordinate system
+//float ipd;																	// The Inter Pupilary Distance
+//float eyez;																	// Eyes local height with respect to the hmd origin
 
 
 
@@ -387,9 +432,9 @@ void VRMOD_SetActiveActionSets(std::string actionSetNames [MAX_ACTIONSETS]) {
     g_activeActionSetCount = 0;
     for (int i = 0; i < MAX_ACTIONSETS; i++) {
         //if (LUA->GetType(i + 1) == GarrysMod::Lua::Type::STRING) {
-		if (actionSetNames[i].c_str) {
+		if (actionSetNames[i].c_str()) {
             //const char* actionSetName = LUA->CheckString(i + 1);
-			const char* actionSetName = actionSetNames[i].c_str;
+			const char* actionSetName = actionSetNames[i].c_str();
 			// Alternative version (if the above line doesn't work correctly):
 			//const char* actionSetName = actionSetNames[i + 1].c_str;
             int actionSetIndex = -1;
@@ -420,7 +465,7 @@ void VRMOD_SetActiveActionSets(std::string actionSetNames [MAX_ACTIONSETS]) {
 //    Lua function: VRMOD_GetViewParameters()											// IMPORTANT FOR HEADTRACKING !!! Properly adjusted for Virtual Fortress 2 now.
 //    Returns: table
 //*************************************************************************
-void VRMOD_GetViewParameters(Vector &eyeToHeadTransformPosLeft, Vector &eyeToHeadTransformPosRight) {
+void VRMOD_GetViewParameters() {
 
     //uint32_t recommendedWidth = 0;
     //uint32_t recommendedHeight = 0;
@@ -502,11 +547,13 @@ void VRMOD_GetPoses() {
             angvel.z = pose.vAngularVelocity.v[1] * (180.0 / 3.141592654);
 
 			// Set the globals so that we can use these results for other functions
-			TrackedDevicesPos[i+1] = pos;
-			TrackedDevicesVel[i+1] = vel;
-			TrackedDevicesAng[i+1] = ang;
-			TrackedDevicesAngVel[i+1] = angvel;
-
+			TrackedDevicePoseStruct MyTrackedDevicePoseStruct;
+			MyTrackedDevicePoseStruct.TrackedDeviceName = poseName;
+			MyTrackedDevicePoseStruct.TrackedDevicePos = pos;
+			MyTrackedDevicePoseStruct.TrackedDeviceVel = vel;
+			MyTrackedDevicePoseStruct.TrackedDeviceAng = ang;
+			MyTrackedDevicePoseStruct.TrackedDeviceAngVel = angvel;
+			TrackedDevicesPoses[i + 1] = MyTrackedDevicePoseStruct;
             /*LUA->CreateTable();
 
             LUA->PushVector(pos);
@@ -749,6 +796,8 @@ void VRMOD_Start() {
 	g_pMaterialSystem->BeginRenderTargetAllocation();
 	RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTextureEx("vrmod_rt", 2 * recommendedWidth, recommendedHeight, RT_SIZE_DEFAULT, g_pMaterialSystem->GetBackBufferFormat(), MATERIAL_RT_DEPTH_SHARED, TEXTUREFLAGS_NOMIP);
 	VRMOD_ShareTextureFinish();
+	VRMOD_UtilHandleTracking();
+	VRMOD_SetActionManifest("OpenVRActionManifest.json");	// Newly added for headtracking.
 	VRMod_Started = 1;
 
 }
@@ -829,4 +878,42 @@ int VRMOD_GetRecHeight()																				// works properly for Virtual Fortre
 {
 	g_pSystem->GetRecommendedRenderTargetSize(&recommendedWidth, &recommendedHeight);
 	return recommendedHeight;
+}
+
+
+// Headtracking functions
+
+// Sets vr origin so that hmd will be at given pos
+void VRMOD_UtilSetOrigin(Vector pos)
+{
+	VRMOD_GetPoses;
+	Vector VR_hmd_pos_local = TrackedDevicesPoses[0].TrackedDevicePos;   // The hmd should be device 0 i think, implement something more robust later.
+	VR_origin = pos + (VR_origin - VR_hmd_pos_local);
+	return;
+}
+
+// I should probably implement this for turning the character
+// Rotates origin while maintaining hmd pos
+void VRMOD_UtilSetOriginAngle(QAngle ang) 
+{
+	return;
+}
+
+
+// Handles tracking, currently only for HMD
+void VRMOD_UtilHandleTracking()
+{
+	VRMOD_GetPoses;
+
+	Vector VR_hmd_pos_local = TrackedDevicesPoses[0].TrackedDevicePos;   // The hmd should be device 0 i think, implement something more robust later.
+	VR_hmd_pos_abs = pPlayer->EyePosition() + VR_hmd_pos_local;
+
+	QAngle VR_hmd_ang_local = TrackedDevicesPoses[0].TrackedDeviceAng;	// The hmd should be device 0 i think, implement something more robust later.
+	VR_hmd_ang_abs = pPlayer->EyeAngles() + VR_hmd_ang_local;		// Don't know if this is correct
+
+	VRMOD_GetViewParameters();
+	ipd = eyeToHeadTransformPosRight.x * 2;
+	eyez = eyeToHeadTransformPosRight.z;
+
+	return;
 }
