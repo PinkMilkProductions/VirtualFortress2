@@ -242,15 +242,13 @@ struct ActionsSkeletonStruct {
 ActionsSkeletonStruct ActionsSkeleton[MAX_ACTIONS];
 
 // Globals for Headtracking
-C_TFPlayer *pPlayer = (C_TFPlayer *)C_BasePlayer::GetLocalPlayer();			// The player character
-
-// These are declared in the header now
-//float VR_scale = 1;															// The VR scale used to match player real life height with the character height.
-//Vector VR_origin;															// The absolute world position of our Tracked VR origin point.
-//Vector VR_hmd_pos_abs;														// Absolute position of the HMD
-//QAngle VR_hmd_ang_abs;														// The angle the HMD makes in the global coordinate system
-//float ipd;																	// The Inter Pupilary Distance
-//float eyez;																	// Eyes local height with respect to the hmd origin
+C_TFPlayer *pPlayer = NULL;													// The player character
+float VR_scale = 1;															// The VR scale used to match player real life height with the character height.
+Vector VR_origin;															// The absolute world position of our Tracked VR origin point.
+Vector VR_hmd_pos_abs;														// Absolute position of the HMD
+QAngle VR_hmd_ang_abs;														// The angle the HMD makes in the global coordinate system
+float ipd;																	// The Inter Pupilary Distance
+float eyez;																	// Eyes local height with respect to the hmd origin
 
 
 
@@ -796,8 +794,10 @@ void VRMOD_Start() {
 	g_pMaterialSystem->BeginRenderTargetAllocation();
 	RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTextureEx("vrmod_rt", 2 * recommendedWidth, recommendedHeight, RT_SIZE_DEFAULT, g_pMaterialSystem->GetBackBufferFormat(), MATERIAL_RT_DEPTH_SHARED, TEXTUREFLAGS_NOMIP);
 	VRMOD_ShareTextureFinish();
-	VRMOD_UtilHandleTracking();
 	VRMOD_SetActionManifest("OpenVRActionManifest.json");	// Newly added for headtracking.
+	pPlayer = (C_TFPlayer *)C_BasePlayer::GetLocalPlayer();
+	VRMOD_UtilSetOrigin(pPlayer->EyePosition());
+	VRMOD_UtilHandleTracking();
 	VRMod_Started = 1;
 
 }
@@ -916,4 +916,35 @@ void VRMOD_UtilHandleTracking()
 	eyez = eyeToHeadTransformPosRight.z;
 
 	return;
+}
+
+QAngle VRMOD_GetViewAngle()
+{
+	return VR_hmd_ang_abs;
+}
+
+Vector VRMOD_GetViewOriginLeft()
+{
+	Vector *VR_hmd_forward = NULL;
+	Vector *VR_hmd_right = NULL;
+	Vector *VR_hmd_up = NULL;
+	Vector view_temp_origin;
+	AngleVectors(VR_hmd_ang_abs, VR_hmd_forward, VR_hmd_right, VR_hmd_up);			// Get the direction vectors from the Qangle
+	view_temp_origin = VR_hmd_pos_abs + (*VR_hmd_forward * (-(eyez * VR_scale)));
+	view_temp_origin = view_temp_origin + (*VR_hmd_right * (-((ipd * VR_scale) / 2)));
+
+	return view_temp_origin;
+}
+
+Vector VRMOD_GetViewOriginRight()
+{
+	Vector *VR_hmd_forward = NULL;
+	Vector *VR_hmd_right = NULL;
+	Vector *VR_hmd_up = NULL;
+	Vector view_temp_origin;
+	AngleVectors(VR_hmd_ang_abs, VR_hmd_forward, VR_hmd_right, VR_hmd_up);			// Get the direction vectors from the Qangle
+	view_temp_origin = VR_hmd_pos_abs + (*VR_hmd_forward * (-(eyez * VR_scale)));
+	view_temp_origin = view_temp_origin + (*VR_hmd_right * (ipd * VR_scale));
+
+	return view_temp_origin;
 }
