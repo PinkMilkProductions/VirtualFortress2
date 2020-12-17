@@ -903,7 +903,7 @@ void VRMOD_UtilSetOriginAngle(QAngle ang)
 // Handles tracking, currently only for HMD
 void VRMOD_UtilHandleTracking()
 {
-	VRMOD_GetPoses;
+	VRMOD_GetPoses();
 
 	Vector VR_hmd_pos_local = TrackedDevicesPoses[0].TrackedDevicePos;   // The hmd should be device 0 i think, implement something more robust later.
 	VR_hmd_pos_abs = pPlayer->EyePosition() + VR_hmd_pos_local;
