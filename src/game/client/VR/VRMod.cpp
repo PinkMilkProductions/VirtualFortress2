@@ -243,12 +243,13 @@ ActionsSkeletonStruct ActionsSkeleton[MAX_ACTIONS];
 
 // Globals for Headtracking
 C_TFPlayer *pPlayer = NULL;													// The player character
-float VR_scale = 1;															// The VR scale used to match player real life height with the character height.
+float VR_scale = 52.49;					// 1 meter = 52.49 Hammer Units		// The VR scale used to match player real life height with the character height.
 Vector VR_origin;															// The absolute world position of our Tracked VR origin point.
 Vector VR_hmd_pos_abs;														// Absolute position of the HMD
 QAngle VR_hmd_ang_abs;														// The angle the HMD makes in the global coordinate system
 float ipd;																	// The Inter Pupilary Distance
 float eyez;																	// Eyes local height with respect to the hmd origin
+std::string ActiveActionSetNames[MAX_ACTIONSETS];							// Needed for setting the active action sets
 
 
 
@@ -426,13 +427,13 @@ int VRMOD_SetActionManifest(const char* fileName) {
 //*************************************************************************
 //    Lua function: VRMOD_SetActiveActionSets(name, ...)												// Probably converted properly for Virtual Fortress 2 now.
 //*************************************************************************
-void VRMOD_SetActiveActionSets(std::string actionSetNames [MAX_ACTIONSETS]) {
+void VRMOD_SetActiveActionSets() {
     g_activeActionSetCount = 0;
     for (int i = 0; i < MAX_ACTIONSETS; i++) {
         //if (LUA->GetType(i + 1) == GarrysMod::Lua::Type::STRING) {
-		if (actionSetNames[i].c_str()) {
+		if (ActiveActionSetNames[i].c_str()) {
             //const char* actionSetName = LUA->CheckString(i + 1);
-			const char* actionSetName = actionSetNames[i].c_str();
+			const char* actionSetName = ActiveActionSetNames[i].c_str();
 			// Alternative version (if the above line doesn't work correctly):
 			//const char* actionSetName = actionSetNames[i + 1].c_str;
             int actionSetIndex = -1;
@@ -795,6 +796,8 @@ void VRMOD_Start() {
 	RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTextureEx("vrmod_rt", 2 * recommendedWidth, recommendedHeight, RT_SIZE_DEFAULT, g_pMaterialSystem->GetBackBufferFormat(), MATERIAL_RT_DEPTH_SHARED, TEXTUREFLAGS_NOMIP);
 	VRMOD_ShareTextureFinish();
 	VRMOD_SetActionManifest("OpenVRActionManifest.json");	// Newly added for headtracking.
+	ActiveActionSetNames[0] = "hmd";
+	VRMOD_SetActiveActionSets();
 	pPlayer = (C_TFPlayer *)C_BasePlayer::GetLocalPlayer();
 	VRMOD_UtilSetOrigin(pPlayer->EyePosition());
 	VRMOD_UtilHandleTracking();
@@ -889,6 +892,7 @@ void VRMOD_UtilSetOrigin(Vector pos)
 	VRMOD_GetPoses;
 	Vector VR_hmd_pos_local = TrackedDevicesPoses[0].TrackedDevicePos;   // The hmd should be device 0 i think, implement something more robust later.
 	VR_origin = pos + (VR_origin - VR_hmd_pos_local);
+	//VR_origin = pos + (VR_origin - (VR_hmd_pos_local * VR_scale));
 	return;
 }
 
@@ -905,8 +909,11 @@ void VRMOD_UtilHandleTracking()
 {
 	VRMOD_GetPoses();
 
+	//VRMOD_UtilSetOrigin(pPlayer->EyePosition());
+
 	Vector VR_hmd_pos_local = TrackedDevicesPoses[0].TrackedDevicePos;   // The hmd should be device 0 i think, implement something more robust later.
-	VR_hmd_pos_abs = pPlayer->EyePosition() + VR_hmd_pos_local;
+	VR_hmd_pos_abs = pPlayer->EyePosition() + VR_hmd_pos_local * VR_scale;
+	//VR_hmd_pos_abs = VR_origin + (2 * VR_hmd_pos_local * VR_scale);
 
 	QAngle VR_hmd_ang_local = TrackedDevicesPoses[0].TrackedDeviceAng;	// The hmd should be device 0 i think, implement something more robust later.
 	VR_hmd_ang_abs = pPlayer->EyeAngles() + VR_hmd_ang_local;		// Don't know if this is correct
@@ -918,6 +925,22 @@ void VRMOD_UtilHandleTracking()
 	return;
 }
 
+void VRMOD_Show_poses()
+{
+	Msg(" local HMD pos x = %.2f", TrackedDevicesPoses[0].TrackedDevicePos.x);
+	Msg(" local HMD pos y = %.2f", TrackedDevicesPoses[0].TrackedDevicePos.y);
+	Msg(" local HMD pos z = %.2f", TrackedDevicesPoses[0].TrackedDevicePos.z);
+
+	Msg(" local HMD ang x = %.2f", TrackedDevicesPoses[0].TrackedDeviceAng.x);
+	Msg(" local HMD ang y = %.2f", TrackedDevicesPoses[0].TrackedDeviceAng.y);
+	Msg(" local HMD ang z = %.2f", TrackedDevicesPoses[0].TrackedDeviceAng.z);
+
+	Msg(" local IPD = %.2f", ipd);
+	Msg(" local eyeZ = %.2f", eyez);
+}
+
+ConCommand vrmod_show_poses("vrmod_show_poses", VRMOD_Show_poses, "Debug info.");
+
 QAngle VRMOD_GetViewAngle()
 {
 	return VR_hmd_ang_abs;
@@ -925,26 +948,26 @@ QAngle VRMOD_GetViewAngle()
 
 Vector VRMOD_GetViewOriginLeft()
 {
-	Vector *VR_hmd_forward = NULL;
-	Vector *VR_hmd_right = NULL;
-	Vector *VR_hmd_up = NULL;
+	Vector VR_hmd_forward;
+	Vector VR_hmd_right;
+	Vector VR_hmd_up;
 	Vector view_temp_origin;
-	AngleVectors(VR_hmd_ang_abs, VR_hmd_forward, VR_hmd_right, VR_hmd_up);			// Get the direction vectors from the Qangle
-	view_temp_origin = VR_hmd_pos_abs + (*VR_hmd_forward * (-(eyez * VR_scale)));
-	view_temp_origin = view_temp_origin + (*VR_hmd_right * (-((ipd * VR_scale) / 2)));
+	AngleVectors(VR_hmd_ang_abs, &VR_hmd_forward, &VR_hmd_right, &VR_hmd_up);			// Get the direction vectors from the Qangle
+	view_temp_origin = VR_hmd_pos_abs + (VR_hmd_forward * (-(eyez * VR_scale)));
+	view_temp_origin = view_temp_origin + (VR_hmd_right * (-((ipd * VR_scale) / 2)));
 
 	return view_temp_origin;
 }
 
 Vector VRMOD_GetViewOriginRight()
 {
-	Vector *VR_hmd_forward = NULL;
-	Vector *VR_hmd_right = NULL;
-	Vector *VR_hmd_up = NULL;
+	Vector VR_hmd_forward;
+	Vector VR_hmd_right;
+	Vector VR_hmd_up;
 	Vector view_temp_origin;
-	AngleVectors(VR_hmd_ang_abs, VR_hmd_forward, VR_hmd_right, VR_hmd_up);			// Get the direction vectors from the Qangle
-	view_temp_origin = VR_hmd_pos_abs + (*VR_hmd_forward * (-(eyez * VR_scale)));
-	view_temp_origin = view_temp_origin + (*VR_hmd_right * (ipd * VR_scale));
+	AngleVectors(VR_hmd_ang_abs, &VR_hmd_forward, &VR_hmd_right, &VR_hmd_up);			// Get the direction vectors from the Qangle
+	view_temp_origin = VR_hmd_pos_abs + (VR_hmd_forward * (-(eyez * VR_scale)));
+	view_temp_origin = view_temp_origin + (VR_hmd_right * (ipd * VR_scale));
 
 	return view_temp_origin;
 }
