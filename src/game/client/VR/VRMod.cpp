@@ -243,8 +243,9 @@ ActionsSkeletonStruct ActionsSkeleton[MAX_ACTIONS];
 
 // Globals for Headtracking
 C_TFPlayer *pPlayer = NULL;													// The player character
-float VR_scale = 52.49;					// 1 meter = 52.49 Hammer Units		// The VR scale used to match player real life height with the character height.
-Vector VR_origin;															// The absolute world position of our Tracked VR origin point.
+//float VR_scale = 52.49;				// 1 meter = 52.49 Hammer Units		// The VR scale used if we want 1:1 based on map units
+float VR_scale = 39.37012415030996;											// Alternative scale if we want to base it on 1:1 realistic character units
+Vector VR_origin = Vector(0, 0, 0);											// The absolute world position of our Tracked VR origin point.
 Vector VR_hmd_pos_abs;														// Absolute position of the HMD
 QAngle VR_hmd_ang_abs;														// The angle the HMD makes in the global coordinate system
 float ipd;																	// The Inter Pupilary Distance
@@ -891,8 +892,8 @@ void VRMOD_UtilSetOrigin(Vector pos)
 {
 	VRMOD_GetPoses;
 	Vector VR_hmd_pos_local = TrackedDevicesPoses[0].TrackedDevicePos;   // The hmd should be device 0 i think, implement something more robust later.
-	VR_origin = pos + (VR_origin - VR_hmd_pos_local);
-	//VR_origin = pos + (VR_origin - (VR_hmd_pos_local * VR_scale));
+	//VR_origin = pos + (VR_origin - VR_hmd_pos_local);
+	VR_origin = pos + (VR_origin - (VR_hmd_pos_local * VR_scale));
 	return;
 }
 
@@ -912,9 +913,8 @@ void VRMOD_UtilHandleTracking()
 	//VRMOD_UtilSetOrigin(pPlayer->EyePosition());
 
 	Vector VR_hmd_pos_local = TrackedDevicesPoses[0].TrackedDevicePos;   // The hmd should be device 0 i think, implement something more robust later.
-	VR_hmd_pos_abs = pPlayer->EyePosition() + VR_hmd_pos_local * VR_scale;
-	//VR_hmd_pos_abs = VR_origin + (2 * VR_hmd_pos_local * VR_scale);
-
+	//VR_hmd_pos_abs = pPlayer->EyePosition() + VR_hmd_pos_local * VR_scale;
+	VR_hmd_pos_abs = pPlayer->EyePosition() - Vector(0, 0, 64) + VR_hmd_pos_local * VR_scale;		// 64 Hammer Units is standing player height.
 	QAngle VR_hmd_ang_local = TrackedDevicesPoses[0].TrackedDeviceAng;	// The hmd should be device 0 i think, implement something more robust later.
 	VR_hmd_ang_abs = pPlayer->EyeAngles() + VR_hmd_ang_local;		// Don't know if this is correct
 
