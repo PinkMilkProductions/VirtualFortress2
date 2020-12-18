@@ -252,6 +252,16 @@ float ipd;																	// The Inter Pupilary Distance
 float eyez;																	// Eyes local height with respect to the hmd origin
 std::string ActiveActionSetNames[MAX_ACTIONSETS];							// Needed for setting the active action sets
 
+Vector VR_hmd_forward;
+Vector VR_hmd_right;
+Vector VR_hmd_up;
+
+Vector Player_forward;
+Vector Player_right;
+Vector Player_up;
+
+QAngle PlayerEyeAngles;
+
 
 
 
@@ -910,13 +920,41 @@ void VRMOD_UtilHandleTracking()
 {
 	VRMOD_GetPoses();
 
-	//VRMOD_UtilSetOrigin(pPlayer->EyePosition());
+	
+	PlayerEyeAngles = pPlayer->EyeAngles();
+	QAngle EyeNoYaw = QAngle(0, PlayerEyeAngles.y, PlayerEyeAngles.z);
 
-	Vector VR_hmd_pos_local = TrackedDevicesPoses[0].TrackedDevicePos;   // The hmd should be device 0 i think, implement something more robust later.
-	//VR_hmd_pos_abs = pPlayer->EyePosition() + VR_hmd_pos_local * VR_scale;
-	VR_hmd_pos_abs = pPlayer->EyePosition() - Vector(0, 0, 64) + VR_hmd_pos_local * VR_scale;		// 64 Hammer Units is standing player height.
-	QAngle VR_hmd_ang_local = TrackedDevicesPoses[0].TrackedDeviceAng;	// The hmd should be device 0 i think, implement something more robust later.
-	VR_hmd_ang_abs = pPlayer->EyeAngles() + VR_hmd_ang_local;		// Don't know if this is correct
+	QAngle VR_hmd_ang_local = TrackedDevicesPoses[0].TrackedDeviceAng;					// The hmd should be device 0 i think, implement something more robust later.
+	Vector VR_hmd_pos_local = TrackedDevicesPoses[0].TrackedDevicePos;					// The hmd should be device 0 i think, implement something more robust later.
+
+	AngleVectors(VR_hmd_ang_local, &VR_hmd_forward, &VR_hmd_right, &VR_hmd_up);			// Get the direction vectors from the local HMD Qangle
+	VR_hmd_forward.z = 0;
+	VR_hmd_right.z = 0;
+
+	VR_hmd_forward = VR_hmd_forward.Normalized();
+	VR_hmd_right = VR_hmd_right.Normalized();
+
+	//AngleVectors(PlayerEyeAngles, &Player_forward, &Player_right, &Player_up);		// Get the direction vectors relative to the way the player's currently facing
+	AngleVectors(EyeNoYaw, &Player_forward, &Player_right, &Player_up);					// Get the direction vectors relative to the way the player's currently facing
+
+
+
+	// Get the values of our local HMD pos projected to the facing vector etc
+	float VR_hmd_pos_local_forward = DotProduct(VR_hmd_pos_local, VR_hmd_forward);
+	float VR_hmd_pos_local_right = DotProduct(VR_hmd_pos_local, VR_hmd_right);
+	//float VR_hmd_pos_local_up = DotProduct(VR_hmd_pos_local, VR_hmd_up);
+	float VR_hmd_pos_local_up = VR_hmd_pos_local.z;
+
+	Vector VR_hmd_pos_local_in_world = VR_hmd_pos_local_forward * Player_forward + VR_hmd_pos_local_right * Player_right + VR_hmd_pos_local_up * Player_up;
+	//Vector VR_hmd_pos_local_in_world = -VR_hmd_pos_local_forward * Player_forward - VR_hmd_pos_local_right * Player_right + Vector(0, 0, VR_hmd_pos_local_up);
+	VR_hmd_pos_local_in_world = VR_hmd_pos_local_in_world * VR_scale;
+
+
+	VR_hmd_pos_abs = pPlayer->EyePosition() - Vector(0, 0, 64) + VR_hmd_pos_local_in_world;		// 64 Hammer Units is standing player height.
+
+	
+	//VR_hmd_ang_abs = PlayerEyeAngles + VR_hmd_ang_local;								// Don't know if this is correct
+	VR_hmd_ang_abs = EyeNoYaw + VR_hmd_ang_local;										// Don't know if this is correct
 
 	VRMOD_GetViewParameters();
 	ipd = eyeToHeadTransformPosRight.x * 2;
@@ -948,26 +986,26 @@ QAngle VRMOD_GetViewAngle()
 
 Vector VRMOD_GetViewOriginLeft()
 {
-	Vector VR_hmd_forward;
-	Vector VR_hmd_right;
-	Vector VR_hmd_up;
+
 	Vector view_temp_origin;
-	AngleVectors(VR_hmd_ang_abs, &VR_hmd_forward, &VR_hmd_right, &VR_hmd_up);			// Get the direction vectors from the Qangle
-	view_temp_origin = VR_hmd_pos_abs + (VR_hmd_forward * (-(eyez * VR_scale)));
-	view_temp_origin = view_temp_origin + (VR_hmd_right * (-((ipd * VR_scale) / 2)));
+
+	//view_temp_origin = VR_hmd_pos_abs + (VR_hmd_forward * (-(eyez * VR_scale)));
+	//view_temp_origin = view_temp_origin + (VR_hmd_right * (-((ipd * VR_scale) / 2)));
+	view_temp_origin = VR_hmd_pos_abs + (Player_forward * (-(eyez * VR_scale)));
+	view_temp_origin = view_temp_origin + (Player_right * (-((ipd * VR_scale) / 2)));
 
 	return view_temp_origin;
 }
 
 Vector VRMOD_GetViewOriginRight()
 {
-	Vector VR_hmd_forward;
-	Vector VR_hmd_right;
-	Vector VR_hmd_up;
+
 	Vector view_temp_origin;
-	AngleVectors(VR_hmd_ang_abs, &VR_hmd_forward, &VR_hmd_right, &VR_hmd_up);			// Get the direction vectors from the Qangle
-	view_temp_origin = VR_hmd_pos_abs + (VR_hmd_forward * (-(eyez * VR_scale)));
-	view_temp_origin = view_temp_origin + (VR_hmd_right * (ipd * VR_scale));
+
+	//view_temp_origin = VR_hmd_pos_abs + (VR_hmd_forward * (-(eyez * VR_scale)));
+	//view_temp_origin = view_temp_origin + (VR_hmd_right * (ipd * VR_scale));
+	view_temp_origin = VR_hmd_pos_abs + (Player_forward * (-(eyez * VR_scale)));
+	view_temp_origin = view_temp_origin + (Player_right * (ipd * VR_scale));
 
 	return view_temp_origin;
 }
