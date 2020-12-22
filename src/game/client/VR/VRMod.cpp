@@ -17,29 +17,6 @@
 #include "c_tf_player.h"		// Recently added for headtracking calculations
 #include <VRMod.h>
 
-// Temp testing thing
-void TestLocalPlayerEyesPos() {
-	bool test = false;
-	C_TFPlayer *pPlayertest = (C_TFPlayer *)C_BasePlayer::GetLocalPlayer();
-	Vector TestEyes;
-	float x = 0;
-	float y = 0;
-	float z = 0;
-	if (pPlayertest) {
-		TestEyes = pPlayertest->EyePosition();
-		x = TestEyes.x;
-		y = TestEyes.y;
-		z = TestEyes.z;
-	}
-
-	Msg("Value for Player Eye Position is: x = %.2f", x);
-	Msg("Value for Player Eye Position is: y = %.2f", y);
-	Msg("Value for Player Eye Position is: z = %.2f", z);
-	return ;
-}
-ConCommand testlocalplayereyespos("testlocalplayereyespos", TestLocalPlayerEyesPos, "Test GetLocalPlayer()");
-
-
 
 #pragma comment (lib, "d3d11.lib")
 #pragma comment (lib, "d3d9.lib")
@@ -246,8 +223,14 @@ C_TFPlayer *pPlayer = NULL;													// The player character
 //float VR_scale = 52.49;				// 1 meter = 52.49 Hammer Units		// The VR scale used if we want 1:1 based on map units
 float VR_scale = 39.37012415030996;											// Alternative scale if we want to base it on 1:1 realistic character units
 Vector VR_origin = Vector(0, 0, 0);											// The absolute world position of our Tracked VR origin point.
+
 Vector VR_hmd_pos_abs;														// Absolute position of the HMD
 QAngle VR_hmd_ang_abs;														// The angle the HMD makes in the global coordinate system
+Vector VR_controller_left_pos_abs;											// left controller pose is in TrackedDevicesPoses[6]
+QAngle VR_controller_left_ang_abs;
+Vector VR_controller_right_pos_abs;											// right controller pose is in TrackedDevicesPoses[7]
+QAngle VR_controller_right_ang_abs;
+
 float ipd;																	// The Inter Pupilary Distance
 float eyez;																	// Eyes local height with respect to the hmd origin
 std::string ActiveActionSetNames[MAX_ACTIONSETS];							// Needed for setting the active action sets
@@ -261,6 +244,13 @@ Vector Player_right;
 Vector Player_up;
 
 QAngle PlayerEyeAngles;
+
+Vector VR_playspace_forward;
+Vector VR_playspace_right;
+Vector VR_playspace_up;
+QAngle ZeroAngle = QAngle(0, 0, 0);
+
+
 
 
 
@@ -376,6 +366,8 @@ ConCommand vrmod_getversion("vrmod_getversion", VRMOD_GetVersion, "Returns the c
     g_horizontalOffsetRight = xoffset;
     g_verticalOffsetRight = yoffset;
 
+	AngleVectors(ZeroAngle, &VR_playspace_forward, &VR_playspace_right, &VR_playspace_up);		// Extra thing i added for headtracking
+
     return;
  }
 
@@ -389,7 +381,7 @@ int VRMOD_SetActionManifest(const char* fileName) {
     char currentDir[MAX_STR_LEN];
     GetCurrentDirectory(MAX_STR_LEN, currentDir);
     char path[MAX_STR_LEN];
-    sprintf_s(path, MAX_STR_LEN, "%s\\tf_port\\%s", currentDir, fileName);
+    sprintf_s(path, MAX_STR_LEN, "%s\\SteamVrActionManifest\\%s", currentDir, fileName);
 
     g_pInput = vr::VRInput();
     if (g_pInput->SetActionManifestPath(path) != vr::VRInputError_None) {
@@ -806,8 +798,11 @@ void VRMOD_Start() {
 	g_pMaterialSystem->BeginRenderTargetAllocation();
 	RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTextureEx("vrmod_rt", 2 * recommendedWidth, recommendedHeight, RT_SIZE_DEFAULT, g_pMaterialSystem->GetBackBufferFormat(), MATERIAL_RT_DEPTH_SHARED, TEXTUREFLAGS_NOMIP);
 	VRMOD_ShareTextureFinish();
-	VRMOD_SetActionManifest("OpenVRActionManifest.json");	// Newly added for headtracking.
-	ActiveActionSetNames[0] = "hmd";
+	VRMOD_SetActionManifest("vrmod_action_manifest.txt");	// Newly added for headtracking.
+	//ActiveActionSetNames[0] = "hmd";
+	//ActiveActionSetNames[1] = "pose_righthand";
+	//ActiveActionSetNames[2] = "pose_lefthand";
+	ActiveActionSetNames[0] = "/actions/vrmod";
 	VRMOD_SetActiveActionSets();
 	pPlayer = (C_TFPlayer *)C_BasePlayer::GetLocalPlayer();
 	VRMOD_UtilSetOrigin(pPlayer->EyePosition());
@@ -881,6 +876,8 @@ void VRMOD_GetTrackedDeviceNames() {
     //return 1;
 }
 
+ConCommand vrmod_get_tracked_device_names("vrmod_get_tracked_device_names", VRMOD_GetTrackedDeviceNames, "Debug info.");
+
 
 int VRMOD_GetRecWidth()																					// works properly for Virtual Fortress 2 now.
 {
@@ -920,7 +917,6 @@ void VRMOD_UtilHandleTracking()
 {
 	VRMOD_GetPoses();
 
-	
 	PlayerEyeAngles = pPlayer->EyeAngles();
 	QAngle EyeNoYaw = QAngle(0, PlayerEyeAngles.y, PlayerEyeAngles.z);
 
@@ -928,25 +924,30 @@ void VRMOD_UtilHandleTracking()
 	Vector VR_hmd_pos_local = TrackedDevicesPoses[0].TrackedDevicePos;					// The hmd should be device 0 i think, implement something more robust later.
 
 	AngleVectors(VR_hmd_ang_local, &VR_hmd_forward, &VR_hmd_right, &VR_hmd_up);			// Get the direction vectors from the local HMD Qangle
-	VR_hmd_forward.z = 0;
-	VR_hmd_right.z = 0;
+	//VR_hmd_forward.z = 0;
+	//VR_hmd_right.z = 0;
 
-	VR_hmd_forward = VR_hmd_forward.Normalized();
-	VR_hmd_right = VR_hmd_right.Normalized();
+	//VR_hmd_forward = VR_hmd_forward.Normalized();
+	//VR_hmd_right = VR_hmd_right.Normalized();
 
 	//AngleVectors(PlayerEyeAngles, &Player_forward, &Player_right, &Player_up);		// Get the direction vectors relative to the way the player's currently facing
 	AngleVectors(EyeNoYaw, &Player_forward, &Player_right, &Player_up);					// Get the direction vectors relative to the way the player's currently facing
 
+	float VR_hmd_pos_local_playspace_forward = DotProduct(VR_hmd_pos_local, VR_playspace_forward);
+	float VR_hmd_pos_local_playspace_right = DotProduct(VR_hmd_pos_local, VR_playspace_right);
+	float VR_hmd_pos_local_playspace_up = DotProduct(VR_hmd_pos_local, VR_playspace_up);
 
 
-	// Get the values of our local HMD pos projected to the facing vector etc
+	/*// Get the values of our local HMD pos projected to the facing vector etc
 	float VR_hmd_pos_local_forward = DotProduct(VR_hmd_pos_local, VR_hmd_forward);
 	float VR_hmd_pos_local_right = DotProduct(VR_hmd_pos_local, VR_hmd_right);
 	//float VR_hmd_pos_local_up = DotProduct(VR_hmd_pos_local, VR_hmd_up);
 	float VR_hmd_pos_local_up = VR_hmd_pos_local.z;
+	*/
 
-	Vector VR_hmd_pos_local_in_world = VR_hmd_pos_local_forward * Player_forward + VR_hmd_pos_local_right * Player_right + VR_hmd_pos_local_up * Player_up;
+	//Vector VR_hmd_pos_local_in_world = VR_hmd_pos_local_forward * Player_forward + VR_hmd_pos_local_right * Player_right + VR_hmd_pos_local_up * Player_up;
 	//Vector VR_hmd_pos_local_in_world = -VR_hmd_pos_local_forward * Player_forward - VR_hmd_pos_local_right * Player_right + Vector(0, 0, VR_hmd_pos_local_up);
+	Vector VR_hmd_pos_local_in_world = VR_hmd_pos_local_playspace_forward * Player_forward + VR_hmd_pos_local_playspace_right * Player_right + VR_hmd_pos_local_playspace_up * Player_up;
 	VR_hmd_pos_local_in_world = VR_hmd_pos_local_in_world * VR_scale;
 
 
@@ -960,24 +961,61 @@ void VRMOD_UtilHandleTracking()
 	ipd = eyeToHeadTransformPosRight.x * 2;
 	eyez = eyeToHeadTransformPosRight.z;
 
+
+
+
+
+
+	// UNDER CONSTRUCTION: MAKE THE JOYSTICKS MOVE THE PLAYER!
+
+	//The things below don't work. Use another function for moving the player!
+
+	//CUserCmd *VRInputUserCmd;
+	//VRInputUserCmd->forwardmove = 200;
+	//VRInputUserCmd->sidemove = 100;
+	//pPlayer->CreateMove(1/60, VRInputUserCmd);
+
+
+
+
+
+
+
+
+
 	return;
 }
 
 void VRMOD_Show_poses()
 {
-	Msg(" local HMD pos x = %.2f", TrackedDevicesPoses[0].TrackedDevicePos.x);
-	Msg(" local HMD pos y = %.2f", TrackedDevicesPoses[0].TrackedDevicePos.y);
-	Msg(" local HMD pos z = %.2f", TrackedDevicesPoses[0].TrackedDevicePos.z);
+	Msg(" local HMD pos x = %.2f \n", TrackedDevicesPoses[0].TrackedDevicePos.x);
+	Msg(" local HMD pos y = %.2f \n", TrackedDevicesPoses[0].TrackedDevicePos.y);
+	Msg(" local HMD pos z = %.2f \n", TrackedDevicesPoses[0].TrackedDevicePos.z);
 
-	Msg(" local HMD ang x = %.2f", TrackedDevicesPoses[0].TrackedDeviceAng.x);
-	Msg(" local HMD ang y = %.2f", TrackedDevicesPoses[0].TrackedDeviceAng.y);
-	Msg(" local HMD ang z = %.2f", TrackedDevicesPoses[0].TrackedDeviceAng.z);
+	Msg(" local HMD ang x = %.2f \n", TrackedDevicesPoses[0].TrackedDeviceAng.x);
+	Msg(" local HMD ang y = %.2f \n", TrackedDevicesPoses[0].TrackedDeviceAng.y);
+	Msg(" local HMD ang z = %.2f \n", TrackedDevicesPoses[0].TrackedDeviceAng.z);
 
-	Msg(" local IPD = %.2f", ipd);
-	Msg(" local eyeZ = %.2f", eyez);
+	Msg(" local IPD = %.2f \n", ipd);
+	Msg(" local eyeZ = %.2f \n", eyez);
 }
 
 ConCommand vrmod_show_poses("vrmod_show_poses", VRMOD_Show_poses, "Debug info.");
+
+void VRMOD_General_Debug()
+{
+	actionSet DebugActionSet = g_actionSets[0];
+	TrackedDevicePoseStruct DebugTrackedDevicesPoses = TrackedDevicesPoses[0];
+	vr::VRActiveActionSet_t DebugActiveActionSets = g_activeActionSets[0];
+	action DebugActions = g_actions[0];
+	int DebugActiveActionSetCount = g_activeActionSetCount;
+	int DebugActionSetCount = g_actionSetCount;
+	int DebugActionCount = g_actionCount;
+
+	Msg("End of Debug function\n");
+}
+
+ConCommand vrmod_general_debug("vrmod_general_debug", VRMOD_General_Debug, "Debug info.");
 
 QAngle VRMOD_GetViewAngle()
 {
@@ -991,8 +1029,10 @@ Vector VRMOD_GetViewOriginLeft()
 
 	//view_temp_origin = VR_hmd_pos_abs + (VR_hmd_forward * (-(eyez * VR_scale)));
 	//view_temp_origin = view_temp_origin + (VR_hmd_right * (-((ipd * VR_scale) / 2)));
-	view_temp_origin = VR_hmd_pos_abs + (Player_forward * (-(eyez * VR_scale)));
-	view_temp_origin = view_temp_origin + (Player_right * (-((ipd * VR_scale) / 2)));
+	//view_temp_origin = VR_hmd_pos_abs + (Player_forward * (-(eyez * VR_scale)));
+	//view_temp_origin = view_temp_origin + (Player_right * (-((ipd * VR_scale) / 2)));
+	view_temp_origin = VR_hmd_pos_abs + (VR_hmd_forward * (-(eyez * VR_scale)));
+	view_temp_origin = view_temp_origin + (VR_hmd_right * (-((ipd * VR_scale) / 2)));
 
 	return view_temp_origin;
 }
@@ -1004,8 +1044,10 @@ Vector VRMOD_GetViewOriginRight()
 
 	//view_temp_origin = VR_hmd_pos_abs + (VR_hmd_forward * (-(eyez * VR_scale)));
 	//view_temp_origin = view_temp_origin + (VR_hmd_right * (ipd * VR_scale));
-	view_temp_origin = VR_hmd_pos_abs + (Player_forward * (-(eyez * VR_scale)));
-	view_temp_origin = view_temp_origin + (Player_right * (ipd * VR_scale));
+	//view_temp_origin = VR_hmd_pos_abs + (Player_forward * (-(eyez * VR_scale)));
+	//view_temp_origin = view_temp_origin + (Player_right * (ipd * VR_scale));
+	view_temp_origin = VR_hmd_pos_abs + (VR_hmd_forward * (-(eyez * VR_scale)));
+	view_temp_origin = view_temp_origin + (VR_hmd_right * (ipd * VR_scale));
 
 	return view_temp_origin;
 }
