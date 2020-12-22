@@ -916,7 +916,6 @@ void VRMOD_UtilSetOriginAngle(QAngle ang)
 void VRMOD_UtilHandleTracking()
 {
 	VRMOD_GetPoses();
-
 	PlayerEyeAngles = pPlayer->EyeAngles();
 	QAngle EyeNoYaw = QAngle(0, PlayerEyeAngles.y, PlayerEyeAngles.z);
 
@@ -924,29 +923,13 @@ void VRMOD_UtilHandleTracking()
 	Vector VR_hmd_pos_local = TrackedDevicesPoses[0].TrackedDevicePos;					// The hmd should be device 0 i think, implement something more robust later.
 
 	AngleVectors(VR_hmd_ang_local, &VR_hmd_forward, &VR_hmd_right, &VR_hmd_up);			// Get the direction vectors from the local HMD Qangle
-	//VR_hmd_forward.z = 0;
-	//VR_hmd_right.z = 0;
 
-	//VR_hmd_forward = VR_hmd_forward.Normalized();
-	//VR_hmd_right = VR_hmd_right.Normalized();
-
-	//AngleVectors(PlayerEyeAngles, &Player_forward, &Player_right, &Player_up);		// Get the direction vectors relative to the way the player's currently facing
 	AngleVectors(EyeNoYaw, &Player_forward, &Player_right, &Player_up);					// Get the direction vectors relative to the way the player's currently facing
 
 	float VR_hmd_pos_local_playspace_forward = DotProduct(VR_hmd_pos_local, VR_playspace_forward);
 	float VR_hmd_pos_local_playspace_right = DotProduct(VR_hmd_pos_local, VR_playspace_right);
 	float VR_hmd_pos_local_playspace_up = DotProduct(VR_hmd_pos_local, VR_playspace_up);
 
-
-	/*// Get the values of our local HMD pos projected to the facing vector etc
-	float VR_hmd_pos_local_forward = DotProduct(VR_hmd_pos_local, VR_hmd_forward);
-	float VR_hmd_pos_local_right = DotProduct(VR_hmd_pos_local, VR_hmd_right);
-	//float VR_hmd_pos_local_up = DotProduct(VR_hmd_pos_local, VR_hmd_up);
-	float VR_hmd_pos_local_up = VR_hmd_pos_local.z;
-	*/
-
-	//Vector VR_hmd_pos_local_in_world = VR_hmd_pos_local_forward * Player_forward + VR_hmd_pos_local_right * Player_right + VR_hmd_pos_local_up * Player_up;
-	//Vector VR_hmd_pos_local_in_world = -VR_hmd_pos_local_forward * Player_forward - VR_hmd_pos_local_right * Player_right + Vector(0, 0, VR_hmd_pos_local_up);
 	Vector VR_hmd_pos_local_in_world = VR_hmd_pos_local_playspace_forward * Player_forward + VR_hmd_pos_local_playspace_right * Player_right + VR_hmd_pos_local_playspace_up * Player_up;
 	VR_hmd_pos_local_in_world = VR_hmd_pos_local_in_world * VR_scale;
 
@@ -973,14 +956,18 @@ void VRMOD_UtilHandleTracking()
 	//CUserCmd *VRInputUserCmd;
 	//VRInputUserCmd->forwardmove = 200;
 	//VRInputUserCmd->sidemove = 100;
-	//pPlayer->CreateMove(1/60, VRInputUserCmd);
 
+	/*float PlayerMaxSpeed = pPlayer->GetPlayerMaxSpeed();
 
+	CUserCmd *VRInputUserCmd = pPlayer->m_pCurrentCommand;
+	VRInputUserCmd->forwardmove = PlayerMaxSpeed;
+	VRInputUserCmd->sidemove = PlayerMaxSpeed / 3;
+	pPlayer->CreateMove(1/60, VRInputUserCmd);
+	*/
+	//ConVar *forward_cvar = cvar->FindVar("+forward");
 
-
-
-
-
+	// This might work i guess
+	engine->ClientCmd("+forward");
 
 
 	return;
@@ -1027,10 +1014,6 @@ Vector VRMOD_GetViewOriginLeft()
 
 	Vector view_temp_origin;
 
-	//view_temp_origin = VR_hmd_pos_abs + (VR_hmd_forward * (-(eyez * VR_scale)));
-	//view_temp_origin = view_temp_origin + (VR_hmd_right * (-((ipd * VR_scale) / 2)));
-	//view_temp_origin = VR_hmd_pos_abs + (Player_forward * (-(eyez * VR_scale)));
-	//view_temp_origin = view_temp_origin + (Player_right * (-((ipd * VR_scale) / 2)));
 	view_temp_origin = VR_hmd_pos_abs + (VR_hmd_forward * (-(eyez * VR_scale)));
 	view_temp_origin = view_temp_origin + (VR_hmd_right * (-((ipd * VR_scale) / 2)));
 
@@ -1042,10 +1025,6 @@ Vector VRMOD_GetViewOriginRight()
 
 	Vector view_temp_origin;
 
-	//view_temp_origin = VR_hmd_pos_abs + (VR_hmd_forward * (-(eyez * VR_scale)));
-	//view_temp_origin = view_temp_origin + (VR_hmd_right * (ipd * VR_scale));
-	//view_temp_origin = VR_hmd_pos_abs + (Player_forward * (-(eyez * VR_scale)));
-	//view_temp_origin = view_temp_origin + (Player_right * (ipd * VR_scale));
 	view_temp_origin = VR_hmd_pos_abs + (VR_hmd_forward * (-(eyez * VR_scale)));
 	view_temp_origin = view_temp_origin + (VR_hmd_right * (ipd * VR_scale));
 
