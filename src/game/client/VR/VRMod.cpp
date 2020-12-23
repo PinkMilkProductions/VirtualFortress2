@@ -966,8 +966,126 @@ void VRMOD_UtilHandleTracking()
 	*/
 	//ConVar *forward_cvar = cvar->FindVar("+forward");
 
-	// This might work i guess
-	engine->ClientCmd("+forward");
+
+	VRMOD_Process_input();
+
+
+
+	return;
+}
+
+void VRMOD_Process_input()
+{
+
+	/*
+	- g_actions[0] = boolean_primaryfire
+	- g_actions[1] = boolean_secondaryfire
+	- g_actions[11] = vector2_walkdirection
+	- g_actions[12] = vector2_right_joystick
+	- g_actions[14] = boolean_walk
+	- g_actions[16] = boolean_turnleft
+	- g_actions[17] = boolean_turnright
+	- g_actions[20] = boolean_jump	
+	*/
+
+	VRMOD_GetActions();
+
+	// Movement
+	if (ActionsBool[14].BoolData == true)		//if the action: input boolean_walk is true
+	{
+		if (ActionsVector2[11].FloatData2 > 0.5)	// if vector2_walkdirection.y > 0.5
+		{
+			engine->ClientCmd("-back");
+			engine->ClientCmd("+forward");
+		}
+		else if (ActionsVector2[11].FloatData2 < -0.5)		// if vector2_walkdirection.y < -0.5
+		{
+			engine->ClientCmd("-forward");
+			engine->ClientCmd("+back");
+		}
+		else
+		{
+			engine->ClientCmd("-back");
+			engine->ClientCmd("-forward");
+		}
+
+		if (ActionsVector2[11].FloatData1 > 0.5)		// if vector2_walkdirection.x > 0.5
+		{
+			engine->ClientCmd("-moveleft");
+			engine->ClientCmd("+moveright");
+		}
+		else if (ActionsVector2[11].FloatData1 < -0.5)		// if vector2_walkdirection.x < -0.5
+		{
+			engine->ClientCmd("-moveright");
+			engine->ClientCmd("+moveleft");
+		}
+		else
+		{
+			engine->ClientCmd("-moveright");
+			engine->ClientCmd("-moveleft");
+		}
+	}
+	else
+	{
+		engine->ClientCmd("-forward");
+		engine->ClientCmd("-back");
+		engine->ClientCmd("-moveleft");
+		engine->ClientCmd("-moveright");
+	}
+
+	// Jumping
+	if (ActionsBool[20].BoolData == true)	// if boolean_jump is true
+	{
+		engine->ClientCmd("+jump");
+	}
+	else
+	{
+		engine->ClientCmd("-jump");
+	}
+
+	// Shooting our weapons
+	if (ActionsBool[0].BoolData == true)	// if boolean_primaryfire is true
+	{
+		engine->ClientCmd("+attack"); 
+	}
+	else
+	{
+		engine->ClientCmd("-attack");
+	}
+
+	if (ActionsBool[1].BoolData == true)	// if boolean_secondaryfire is true
+	{
+		engine->ClientCmd("+attack2");
+	}
+	else
+	{
+		engine->ClientCmd("-attack2");
+	}
+
+
+	// Turning
+	
+	//"cl_yawspeed", "cl_pitchspeed"
+
+	if (ActionsBool[16].BoolData == true)	// if boolean_turnleft is true
+	{
+		engine->ClientCmd("-right");
+		engine->ClientCmd("+left");
+	}
+	else
+	{
+		engine->ClientCmd("-left");
+	}
+
+	if (ActionsBool[17].BoolData == true)	// if boolean_turnright is true
+	{
+		engine->ClientCmd("-left");
+		engine->ClientCmd("+right");
+	}
+	else
+	{
+		engine->ClientCmd("-right");
+	}
 
 
 	return;

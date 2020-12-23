@@ -22,6 +22,8 @@ void VRMOD_UtilSetOrigin(Vector pos);
 
 void VRMOD_UtilHandleTracking();
 
+void VRMOD_Process_input();
+
 QAngle VRMOD_GetViewAngle();
 
 Vector VRMOD_GetViewOriginLeft();
