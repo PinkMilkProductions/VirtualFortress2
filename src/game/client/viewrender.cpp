@@ -1936,6 +1936,7 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 		view_temp.fovViewmodel = g_horizontalFOVLeft;
 		view_temp.m_flAspectRatio = g_aspectRatioLeft;
 		view_temp.zNear = 6;
+		view_temp.zNearViewmodel = 6;
 
 		view_temp.angles = VRMOD_GetViewAngle();
 		view_temp.origin = VRMOD_GetViewOriginLeft();
@@ -1951,8 +1952,10 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 		view_temp.fovViewmodel = g_horizontalFOVRight;
 		view_temp.m_flAspectRatio = g_aspectRatioRight;
 		view_temp.zNear = 6;
+		view_temp.zNearViewmodel = 6;
 		view_temp.angles = VRMOD_GetViewAngle();
 		view_temp.origin = VRMOD_GetViewOriginRight();
+		
 	}
 	const CViewSetup view = view_temp;
 

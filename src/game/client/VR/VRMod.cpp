@@ -912,7 +912,7 @@ void VRMOD_UtilSetOriginAngle(QAngle ang)
 }
 
 
-// Handles tracking, currently only for HMD
+
 void VRMOD_UtilHandleTracking()
 {
 	VRMOD_GetPoses();
@@ -936,37 +936,59 @@ void VRMOD_UtilHandleTracking()
 
 	VR_hmd_pos_abs = pPlayer->EyePosition() - Vector(0, 0, 64) + VR_hmd_pos_local_in_world;		// 64 Hammer Units is standing player height.
 
-	
-	//VR_hmd_ang_abs = PlayerEyeAngles + VR_hmd_ang_local;								// Don't know if this is correct
-	VR_hmd_ang_abs = EyeNoYaw + VR_hmd_ang_local;										// Don't know if this is correct
+									
+	VR_hmd_ang_abs = EyeNoYaw + VR_hmd_ang_local;										
 
 	VRMOD_GetViewParameters();
 	ipd = eyeToHeadTransformPosRight.x * 2;
 	eyez = eyeToHeadTransformPosRight.z;
 
 
+	// Handtracking
+
+	Vector VR_controller_left_pos_local = TrackedDevicesPoses[6].TrackedDevicePos;											// left controller pose is in TrackedDevicesPoses[6]
+	QAngle VR_controller_left_ang_local = TrackedDevicesPoses[6].TrackedDeviceAng;
+
+	Vector VR_controller_right_pos_local = TrackedDevicesPoses[7].TrackedDevicePos;											// right controller pose is in TrackedDevicesPoses[7]
+	QAngle VR_controller_right_ang_local = TrackedDevicesPoses[7].TrackedDeviceAng;
 
 
+	float VR_controller_left_pos_local_playspace_forward = DotProduct(VR_controller_left_pos_local, VR_playspace_forward);
+	float VR_controller_left_pos_local_playspace_right = DotProduct(VR_controller_left_pos_local, VR_playspace_right);
+	float VR_controller_left_pos_local_playspace_up = DotProduct(VR_controller_left_pos_local, VR_playspace_up);
+
+	float VR_controller_right_pos_local_playspace_forward = DotProduct(VR_controller_right_pos_local, VR_playspace_forward);
+	float VR_controller_right_pos_local_playspace_right = DotProduct(VR_controller_right_pos_local, VR_playspace_right);
+	float VR_controller_right_pos_local_playspace_up = DotProduct(VR_controller_right_pos_local, VR_playspace_up);
 
 
-	// UNDER CONSTRUCTION: MAKE THE JOYSTICKS MOVE THE PLAYER!
+	Vector VR_controller_left_pos_local_in_world = VR_controller_left_pos_local_playspace_forward * Player_forward + VR_controller_left_pos_local_playspace_right * Player_right + VR_controller_left_pos_local_playspace_up * Player_up;
+	VR_controller_left_pos_local_in_world = VR_controller_left_pos_local_in_world * VR_scale;
 
-	//The things below don't work. Use another function for moving the player!
-
-	//CUserCmd *VRInputUserCmd;
-	//VRInputUserCmd->forwardmove = 200;
-	//VRInputUserCmd->sidemove = 100;
-
-	/*float PlayerMaxSpeed = pPlayer->GetPlayerMaxSpeed();
-
-	CUserCmd *VRInputUserCmd = pPlayer->m_pCurrentCommand;
-	VRInputUserCmd->forwardmove = PlayerMaxSpeed;
-	VRInputUserCmd->sidemove = PlayerMaxSpeed / 3;
-	pPlayer->CreateMove(1/60, VRInputUserCmd);
-	*/
-	//ConVar *forward_cvar = cvar->FindVar("+forward");
+	Vector VR_controller_right_pos_local_in_world = VR_controller_right_pos_local_playspace_forward * Player_forward + VR_controller_right_pos_local_playspace_right * Player_right + VR_controller_right_pos_local_playspace_up * Player_up;
+	VR_controller_right_pos_local_in_world = VR_controller_right_pos_local_in_world * VR_scale;
 
 
+	VR_controller_left_pos_abs = pPlayer->EyePosition() - Vector(0, 0, 64) + VR_controller_left_pos_local_in_world;		// 64 Hammer Units is standing player height.
+
+	VR_controller_right_pos_abs = pPlayer->EyePosition() - Vector(0, 0, 64) + VR_controller_right_pos_local_in_world;		// 64 Hammer Units is standing player height.
+
+
+	// controller angles
+	VR_controller_left_ang_abs = EyeNoYaw + VR_controller_left_ang_local;
+
+	VR_controller_right_ang_abs = EyeNoYaw + VR_controller_right_ang_local;
+
+
+	// Set viewmodel position
+	// All of these do nothing
+	//C_BaseViewModel * vmodel = pPlayer->GetViewModel();
+	//vmodel->SetAbsOrigin(VR_controller_right_pos_abs);
+	//vmodel->SetAbsAngles(VR_controller_right_ang_abs);
+	//vmodel->SetViewOffset(VR_controller_right_pos_abs);
+
+
+	// Process action input
 	VRMOD_Process_input();
 
 
