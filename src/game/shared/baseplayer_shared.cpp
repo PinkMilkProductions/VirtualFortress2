@@ -826,14 +826,14 @@ Vector CBasePlayer::Weapon_ShootPosition( )
 {
 	Vector Shootposition = Vector(0, 0, 0);
 
-	if (VRMod_Started == 1)
+	/*if (VRMod_Started == 1)
 	{
 		Shootposition = VRMOD_GetRightControllerAbsPos();
 	}
 	else
-	{
+	{*/
 		Shootposition = EyePosition();
-	}
+	//}
 	//return EyePosition();
 	return Shootposition;
 }

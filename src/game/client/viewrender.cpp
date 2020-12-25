@@ -1926,7 +1926,7 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 	//	height_VR = VRMOD_GetRecHeight();
 	//}
 	CViewSetup view_temp = view_const;
-	if (!SecondEyeRenderPass && VRMod_Started) {		// If we're gonna for the first eye
+	if (!SecondEyeRenderPass && VRMod_Started) {		// If we're gonna renderfor the first eye
 		view_temp.x = 0;
 		view_temp.width = width_VR;
 		//view_temp.width = 640;
@@ -1935,8 +1935,8 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 		view_temp.fov = g_horizontalFOVLeft;
 		view_temp.fovViewmodel = g_horizontalFOVLeft;
 		view_temp.m_flAspectRatio = g_aspectRatioLeft;
-		view_temp.zNear = 6;
-		view_temp.zNearViewmodel = 6;
+		//view_temp.zNear = 6;
+		//view_temp.zNearViewmodel = 6;
 
 		view_temp.angles = VRMOD_GetViewAngle();
 		view_temp.origin = VRMOD_GetViewOriginLeft();
@@ -1951,8 +1951,8 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 		view_temp.fov = g_horizontalFOVRight;
 		view_temp.fovViewmodel = g_horizontalFOVRight;
 		view_temp.m_flAspectRatio = g_aspectRatioRight;
-		view_temp.zNear = 6;
-		view_temp.zNearViewmodel = 6;
+		//view_temp.zNear = 6;
+		//view_temp.zNearViewmodel = 6;
 		view_temp.angles = VRMOD_GetViewAngle();
 		view_temp.origin = VRMOD_GetViewOriginRight();
 		
@@ -1988,11 +1988,13 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 	CMatRenderContextPtr pRenderContext( materials );
 
 	// CUSTOM VRMOD IF CONDITION
-
-	if ((VRMod_Started == 1) && (RenderTargetIsVRMOD == 0)) {
+	
+	if ((VRMod_Started == 1) && (RenderTargetIsVRMOD == 0))		// Switch RenderTarget To the VR one
+	{
 		pRenderContext->SetRenderTarget(RenderTarget_VRMod);
-		//RenderTargetIsVRMOD = 1;    // This either speeds things up or makes the renderer stop sending frames to our VR rendertarget after the first one. Come back to this later.
+		RenderTargetIsVRMOD = 1;    // This either speeds things up or makes the renderer stop sending frames to our VR rendertarget after the first one. Come back to this later.
 	}
+
 	ITexture *saveRenderTarget = pRenderContext->GetRenderTarget();
 	pRenderContext.SafeRelease(); // don't want to hold for long periods in case in a locking active share thread mode
 
@@ -2397,6 +2399,7 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 	render->PopView( GetFrustum() );
 
 	// CUSTOM VRMOD CODE
+
 	if (VRMod_Started == 1 && SecondEyeRenderPass) {
 		VRMOD_UpdatePosesAndActions();
 		VRMOD_UtilHandleTracking();
@@ -2406,10 +2409,14 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 	g_WorldListCache.Flush();
 
 	// CUSTOM VRMOD CODE
+	
 	SecondEyeRenderPass = !SecondEyeRenderPass;
-	if (SecondEyeRenderPass && (VRMod_Started == 1)) {
+	
+	if ((SecondEyeRenderPass) && (VRMod_Started == 1)) {
 		CViewRender::RenderView(view_const, nClearFlags, whatToDraw);
 	}
+
+
 }
 
 //-----------------------------------------------------------------------------

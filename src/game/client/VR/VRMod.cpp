@@ -220,8 +220,8 @@ ActionsSkeletonStruct ActionsSkeleton[MAX_ACTIONS];
 
 // Globals for Headtracking
 C_TFPlayer *pPlayer = NULL;													// The player character
-//float VR_scale = 52.49;				// 1 meter = 52.49 Hammer Units		// The VR scale used if we want 1:1 based on map units
-float VR_scale = 39.37012415030996;											// Alternative scale if we want to base it on 1:1 realistic character units
+float VR_scale = 52.49;				// 1 meter = 52.49 Hammer Units		// The VR scale used if we want 1:1 based on map units
+//float VR_scale = 39.37012415030996;											// Alternative scale if we want to base it on 1:1 realistic character units
 Vector VR_origin = Vector(0, 0, 0);											// The absolute world position of our Tracked VR origin point.
 
 Vector VR_hmd_pos_abs;														// Absolute position of the HMD
@@ -798,12 +798,10 @@ void VRMOD_Start() {
 
 	VRMOD_ShareTextureBegin();
 	g_pMaterialSystem->BeginRenderTargetAllocation();
-	RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTextureEx("vrmod_rt", 2 * recommendedWidth, recommendedHeight, RT_SIZE_DEFAULT, g_pMaterialSystem->GetBackBufferFormat(), MATERIAL_RT_DEPTH_SHARED, TEXTUREFLAGS_NOMIP);
+	//RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTextureEx("vrmod_rt", 2 * recommendedWidth, recommendedHeight, RT_SIZE_DEFAULT, g_pMaterialSystem->GetBackBufferFormat(), MATERIAL_RT_DEPTH_SHARED, TEXTUREFLAGS_NOMIP);
+	RenderTarget_VRMod = materials->CreateNamedRenderTargetTextureEx("vrmod_rt", 2 * recommendedWidth, recommendedHeight, RT_SIZE_DEFAULT, materials->GetBackBufferFormat(), MATERIAL_RT_DEPTH_SHARED, TEXTUREFLAGS_NOMIP);
 	VRMOD_ShareTextureFinish();
 	VRMOD_SetActionManifest("vrmod_action_manifest.txt");	// Newly added for headtracking.
-	//ActiveActionSetNames[0] = "hmd";
-	//ActiveActionSetNames[1] = "pose_righthand";
-	//ActiveActionSetNames[2] = "pose_lefthand";
 	ActiveActionSetNames[0] = "/actions/vrmod";
 	VRMOD_SetActiveActionSets();
 	pPlayer = (C_TFPlayer *)C_BasePlayer::GetLocalPlayer();
@@ -934,9 +932,11 @@ void VRMOD_UtilHandleTracking()
 
 	Vector VR_hmd_pos_local_in_world = VR_hmd_pos_local_playspace_forward * Player_forward + VR_hmd_pos_local_playspace_right * Player_right + VR_hmd_pos_local_playspace_up * Player_up;
 	VR_hmd_pos_local_in_world = VR_hmd_pos_local_in_world * VR_scale;
+	//VR_hmd_pos_local_in_world.x = VR_hmd_pos_local_in_world.x * 52.49;
+	//VR_hmd_pos_local_in_world.y = VR_hmd_pos_local_in_world.y * 52.49;
+	//VR_hmd_pos_local_in_world.z = VR_hmd_pos_local_in_world.z * 39.37012415030996;
 
-
-	VR_hmd_pos_abs = pPlayer->EyePosition() - Vector(0, 0, 64) + VR_hmd_pos_local_in_world;		// 64 Hammer Units is standing player height.
+	VR_hmd_pos_abs = pPlayer->EyePosition() - Vector(0, 0, 64 * 52.49 / 39.37012415030996) + VR_hmd_pos_local_in_world;		// 64 Hammer Units is standing player height.
 
 									
 	VR_hmd_ang_abs = EyeNoYaw + VR_hmd_ang_local - VR_Player_Spawn_HMD_Angles;
@@ -967,13 +967,14 @@ void VRMOD_UtilHandleTracking()
 	Vector VR_controller_left_pos_local_in_world = VR_controller_left_pos_local_playspace_forward * Player_forward + VR_controller_left_pos_local_playspace_right * Player_right + VR_controller_left_pos_local_playspace_up * Player_up;
 	VR_controller_left_pos_local_in_world = VR_controller_left_pos_local_in_world * VR_scale;
 
+
 	Vector VR_controller_right_pos_local_in_world = VR_controller_right_pos_local_playspace_forward * Player_forward + VR_controller_right_pos_local_playspace_right * Player_right + VR_controller_right_pos_local_playspace_up * Player_up;
 	VR_controller_right_pos_local_in_world = VR_controller_right_pos_local_in_world * VR_scale;
 
 
-	VR_controller_left_pos_abs = pPlayer->EyePosition() - Vector(0, 0, 64) + VR_controller_left_pos_local_in_world;		// 64 Hammer Units is standing player height.
+	VR_controller_left_pos_abs = pPlayer->EyePosition() - Vector(0, 0, 64 * 52.49 / 39.37012415030996) + VR_controller_left_pos_local_in_world;		// 64 Hammer Units is standing player height.
 
-	VR_controller_right_pos_abs = pPlayer->EyePosition() - Vector(0, 0, 64) + VR_controller_right_pos_local_in_world;		// 64 Hammer Units is standing player height.
+	VR_controller_right_pos_abs = pPlayer->EyePosition() - Vector(0, 0, 64 * 52.49 / 39.37012415030996) + VR_controller_right_pos_local_in_world;		// 64 Hammer Units is standing player height.
 
 	// controller angles
 	VR_controller_left_ang_abs = EyeNoYaw + VR_controller_left_ang_local;
