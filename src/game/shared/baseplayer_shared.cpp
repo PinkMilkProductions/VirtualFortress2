@@ -47,12 +47,19 @@
 #include "SoundEmitterSystem/isoundemittersystembase.h"
 #include "decals.h"
 #include "obstacle_pushaway.h"
+
+
+
 #ifdef SIXENSE
 #include "sixense/in_sixense.h"
 #endif
 
 // NVNT haptic utils
 #include "haptics/haptic_utils.h"
+
+
+#include "VRMod.h"
+
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
@@ -817,7 +824,18 @@ void CBasePlayer::SetStepSoundTime( stepsoundtimes_t iStepSoundTime, bool bWalki
 
 Vector CBasePlayer::Weapon_ShootPosition( )
 {
-	return EyePosition();
+	Vector Shootposition = Vector(0, 0, 0);
+
+	if (VRMod_Started == 1)
+	{
+		Shootposition = VRMOD_GetRightControllerAbsPos();
+	}
+	else
+	{
+		Shootposition = EyePosition();
+	}
+	//return EyePosition();
+	return Shootposition;
 }
 
 void CBasePlayer::SetAnimationExtension( const char *pExtension )

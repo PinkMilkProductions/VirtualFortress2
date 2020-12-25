@@ -250,6 +250,8 @@ Vector VR_playspace_right;
 Vector VR_playspace_up;
 QAngle ZeroAngle = QAngle(0, 0, 0);
 
+QAngle VR_Player_Spawn_HMD_Angles = QAngle(0, 0, 0);						// Used for making the player face the right direction when spawning
+
 
 
 
@@ -937,7 +939,7 @@ void VRMOD_UtilHandleTracking()
 	VR_hmd_pos_abs = pPlayer->EyePosition() - Vector(0, 0, 64) + VR_hmd_pos_local_in_world;		// 64 Hammer Units is standing player height.
 
 									
-	VR_hmd_ang_abs = EyeNoYaw + VR_hmd_ang_local;										
+	VR_hmd_ang_abs = EyeNoYaw + VR_hmd_ang_local - VR_Player_Spawn_HMD_Angles;
 
 	VRMOD_GetViewParameters();
 	ipd = eyeToHeadTransformPosRight.x * 2;
@@ -973,25 +975,13 @@ void VRMOD_UtilHandleTracking()
 
 	VR_controller_right_pos_abs = pPlayer->EyePosition() - Vector(0, 0, 64) + VR_controller_right_pos_local_in_world;		// 64 Hammer Units is standing player height.
 
-
 	// controller angles
 	VR_controller_left_ang_abs = EyeNoYaw + VR_controller_left_ang_local;
 
 	VR_controller_right_ang_abs = EyeNoYaw + VR_controller_right_ang_local;
 
-
-	// Set viewmodel position
-	// All of these do nothing
-	//C_BaseViewModel * vmodel = pPlayer->GetViewModel();
-	//vmodel->SetAbsOrigin(VR_controller_right_pos_abs);
-	//vmodel->SetAbsAngles(VR_controller_right_ang_abs);
-	//vmodel->SetViewOffset(VR_controller_right_pos_abs);
-
-
 	// Process action input
 	VRMOD_Process_input();
-
-
 
 	return;
 }
@@ -1125,6 +1115,23 @@ void VRMOD_Show_poses()
 
 	Msg(" local IPD = %.2f \n", ipd);
 	Msg(" local eyeZ = %.2f \n", eyez);
+
+	Msg(" absolute left controller pos x = %.2f \n", VR_controller_left_pos_abs.x);
+	Msg(" absolute left controller pos y = %.2f \n", VR_controller_left_pos_abs.y);
+	Msg(" absolute left controller pos z = %.2f \n", VR_controller_left_pos_abs.z);
+
+	Msg(" absolute left controller angle x = %.2f \n", VR_controller_left_ang_abs.x);
+	Msg(" absolute left controller angle y = %.2f \n", VR_controller_left_ang_abs.y);
+	Msg(" absolute left controller angle z = %.2f \n", VR_controller_left_ang_abs.z);
+
+	Msg(" absolute right controller pos x = %.2f \n", VR_controller_right_pos_abs.x);
+	Msg(" absolute right controller pos y = %.2f \n", VR_controller_right_pos_abs.y);
+	Msg(" absolute right controller pos z = %.2f \n", VR_controller_right_pos_abs.z);
+
+	Msg(" absolute right controller angle x = %.2f \n", VR_controller_right_ang_abs.x);
+	Msg(" absolute right controller angle y = %.2f \n", VR_controller_right_ang_abs.y);
+	Msg(" absolute right controller angle z = %.2f \n", VR_controller_right_ang_abs.z);
+
 }
 
 ConCommand vrmod_show_poses("vrmod_show_poses", VRMOD_Show_poses, "Debug info.");
@@ -1167,6 +1174,31 @@ Vector VRMOD_GetViewOriginRight()
 
 	view_temp_origin = VR_hmd_pos_abs + (VR_hmd_forward * (-(eyez * VR_scale)));
 	view_temp_origin = view_temp_origin + (VR_hmd_right * (ipd * VR_scale));
-
 	return view_temp_origin;
+}
+
+Vector VRMOD_GetRecommendedViewmodelAbsPos()
+{
+	return VR_controller_right_pos_abs;
+}
+
+QAngle VRMOD_GetRecommendedViewmodelAbsAngle()
+{
+	return (VR_controller_right_ang_abs - QAngle(-45, 0, 0));
+}
+
+QAngle VRMOD_GetRightControllerAbsAngle()
+{
+	return VR_controller_right_ang_abs;
+}
+
+Vector VRMOD_GetRightControllerAbsPos()
+{
+	return VR_controller_right_pos_abs;
+}
+
+// Used for making the player face the right direction when spawning
+void VRMOD_SetSpawnPlayerHMDAngles()
+{
+	VR_Player_Spawn_HMD_Angles = TrackedDevicesPoses[0].TrackedDeviceAng;
 }

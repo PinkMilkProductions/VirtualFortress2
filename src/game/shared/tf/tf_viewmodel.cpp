@@ -21,6 +21,8 @@
 
 #include "bone_setup.h"	//temp
 
+#include "VRMod.h"	// For Virtual Fortress 2
+
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
@@ -138,6 +140,22 @@ void CTFViewModel::CalcViewModelView( CBasePlayer *owner, const Vector& eyePosit
 	vecLoweredAngles.x += m_vLoweredWeaponOffset.x;
 
 	vecNewAngles += vecLoweredAngles;
+
+	if (VRMod_Started == 1)
+	{
+		CTFWeaponBase *pWeapon = assert_cast<CTFWeaponBase*>(GetWeapon());
+		if (pWeapon)
+		{
+			Vector WeaponOffset = pWeapon->GetViewOffset();
+			vecNewOrigin = VRMOD_GetRecommendedViewmodelAbsPos() - WeaponOffset;
+		}
+		else
+		{
+			vecNewOrigin = VRMOD_GetRecommendedViewmodelAbsPos();
+		}
+
+		vecNewAngles = VRMOD_GetRecommendedViewmodelAbsAngle();
+	}
 
 	BaseClass::CalcViewModelView( owner, vecNewOrigin, vecNewAngles );
 

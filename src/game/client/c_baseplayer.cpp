@@ -49,6 +49,7 @@
 #include "steam/steam_api.h"
 #include "sourcevr/isourcevirtualreality.h"
 #include "client_virtualreality.h"
+#include "VRMod.h"	// For Virtual Fortress 2
 
 #if defined USES_ECON_ITEMS
 #include "econ_wearable.h"
@@ -484,6 +485,8 @@ void C_BasePlayer::Spawn( void )
 	m_bWasFreezeFraming = false;
 
 	m_bFiredWeapon = false;
+
+	VRMOD_SetSpawnPlayerHMDAngles();
 }
 
 //-----------------------------------------------------------------------------
@@ -2197,8 +2200,18 @@ Vector C_BasePlayer::GetAutoaimVector( float flScale )
 {
 	// Never autoaim a predicted weapon (for now)
 	Vector	forward;
-	AngleVectors( GetAbsAngles() + m_Local.m_vecPunchAngle, &forward );
-	return	forward;
+
+	if (VRMod_Started == 1)
+	{
+		QAngle weapon_angle = VRMOD_GetRightControllerAbsAngle();
+		AngleVectors(weapon_angle, &forward);
+	}
+	else
+	{
+		AngleVectors(GetAbsAngles() + m_Local.m_vecPunchAngle, &forward);
+	}
+
+	return forward;
 }
 
 void C_BasePlayer::PlayPlayerJingle()

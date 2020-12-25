@@ -12,6 +12,8 @@ float g_aspectRatioRight = 0;
 
 
 
+
+
 // Functions we want to share with other files (mainly viewrender.cpp for now)
 
 void VRMOD_SubmitSharedTexture();
@@ -33,3 +35,13 @@ Vector VRMOD_GetViewOriginRight();
 int VRMOD_GetRecWidth();
 
 int VRMOD_GetRecHeight();
+
+Vector VRMOD_GetRecommendedViewmodelAbsPos();
+
+QAngle VRMOD_GetRecommendedViewmodelAbsAngle();
+
+QAngle VRMOD_GetRightControllerAbsAngle();
+
+Vector VRMOD_GetRightControllerAbsPos();
+
+void VRMOD_SetSpawnPlayerHMDAngles();
