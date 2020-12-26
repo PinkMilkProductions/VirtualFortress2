@@ -25,7 +25,16 @@
 
 /*
 //*************************************************************************
-//  Current issues:		-  Frames sent to the HMD work perfectly fine on 720p but when we try to use the recommended HMD resolutions,
+//  Current issues:		
+
+						- A whole lot of compile issues. Started by trying to modify baseplayer_shared.cpp
+						Weapon_shootposition.
+						Has to do something with the server project. I was adviced to fix it by adding VRMOD.cpp and .h to the server project so the function is defined there
+						but now it's complaining about d3d11.h
+
+
+
+						-  Frames sent to the HMD work perfectly fine on 720p but when we try to use the recommended HMD resolutions,
 						   the HMD frames become black with part of a white rectangle off-bounds.
 						THINGS I TRIED: 
 							1. This issue is the same wether we Use Virtual Desktop or Oculus Link
@@ -251,6 +260,14 @@ Vector VR_playspace_up;
 QAngle ZeroAngle = QAngle(0, 0, 0);
 
 QAngle VR_Player_Spawn_HMD_Angles = QAngle(0, 0, 0);						// Used for making the player face the right direction when spawning
+
+bool switch_up_just_switched = false;										// For Action controlled weapon switching
+bool switch_down_just_switched = false;
+int switch_up_counter = 0;
+int switch_down_counter = 0;
+
+// Convars that the players can set themselves if they want to
+ConVar VRMOD_ipd_scale("VRMOD_ipd_scale", "52.49", 0, "sets the scale used exclusively for IPD distance. Valid inputs between 1 and 100", true, 1.0f, true, 100.0f);
 
 
 
@@ -993,12 +1010,18 @@ void VRMOD_Process_input()
 	/*
 	- g_actions[0] = boolean_primaryfire
 	- g_actions[1] = boolean_secondaryfire
+	- g_actions[4] = boolean_spawnmenu
 	- g_actions[11] = vector2_walkdirection
 	- g_actions[12] = vector2_right_joystick
 	- g_actions[14] = boolean_walk
 	- g_actions[16] = boolean_turnleft
 	- g_actions[17] = boolean_turnright
+	- g_actions[19] = boolean_reload
 	- g_actions[20] = boolean_jump	
+	- g_actions[25] = boolean_changeweapon_up
+	- g_actions[26] = boolean_changeweapon_down
+	- g_actions[27] = boolean_crouch
+	- g_actions[28] = boolean_medic
 	*/
 
 	VRMOD_GetActions();
@@ -1056,6 +1079,16 @@ void VRMOD_Process_input()
 		engine->ClientCmd("-jump");
 	}
 
+	// Crouching
+	if (ActionsBool[27].BoolData == true)	// if boolean_crouch is true
+	{
+		engine->ClientCmd("+duck");
+	}
+	else
+	{
+		engine->ClientCmd("-duck");
+	}
+
 	// Shooting our weapons
 	if (ActionsBool[0].BoolData == true)	// if boolean_primaryfire is true
 	{
@@ -1074,6 +1107,57 @@ void VRMOD_Process_input()
 	{
 		engine->ClientCmd("-attack2");
 	}
+
+
+	// Weapon switching
+	if ((ActionsBool[25].BoolData == true) && (!switch_up_just_switched))	// if boolean_changeweapon_up is true
+	{
+		engine->ClientCmd("invprev");
+		switch_up_counter = 0;
+		switch_up_just_switched = true;
+	}
+	else
+	{
+		switch_up_counter += 1;
+		if (switch_up_counter > 20)
+		{
+			switch_up_just_switched = false;
+		}
+		
+	}
+
+	if ((ActionsBool[26].BoolData == true) && (!switch_down_just_switched))	// if boolean_changeweapon_down is true
+	{
+		engine->ClientCmd("invnext");
+		switch_down_counter = 0;
+		switch_down_just_switched = true;
+	}
+	else
+	{
+		switch_down_counter += 1;
+		if (switch_down_counter > 20)
+		{
+			switch_down_just_switched = false;
+		}
+		
+	}
+
+	// Reloading
+	if (ActionsBool[19].BoolData == true)	// if boolean_reload is true
+	{
+		engine->ClientCmd("+reload");
+	}
+	else
+	{
+		engine->ClientCmd("-reload");
+	}
+
+	// Calling for a medic
+	if (ActionsBool[28].BoolData == true)	// if boolean_medic is true
+	{
+		engine->ClientCmd("voicemenu 0 0");
+	}
+
 
 
 	// Turning
@@ -1101,8 +1185,21 @@ void VRMOD_Process_input()
 	}
 
 
+
+	// Spawn a contextual menu. Currently just taunts
+	if (ActionsBool[4].BoolData == true)	// if boolean_spawnmenu is true
+	{
+		engine->ClientCmd("taunt");
+	}
+
+
+
+
+
 	return;
 }
+
+
 
 void VRMOD_Show_poses()
 {
@@ -1163,7 +1260,8 @@ Vector VRMOD_GetViewOriginLeft()
 	Vector view_temp_origin;
 
 	view_temp_origin = VR_hmd_pos_abs + (VR_hmd_forward * (-(eyez * VR_scale)));
-	view_temp_origin = view_temp_origin + (VR_hmd_right * (-((ipd * VR_scale) / 2)));
+	//view_temp_origin = view_temp_origin + (VR_hmd_right * (-((ipd * VR_scale) / 2)));
+	view_temp_origin = view_temp_origin + (VR_hmd_right * (-((ipd * VRMOD_ipd_scale.GetFloat()) / 2)));
 
 	return view_temp_origin;
 }
@@ -1174,7 +1272,9 @@ Vector VRMOD_GetViewOriginRight()
 	Vector view_temp_origin;
 
 	view_temp_origin = VR_hmd_pos_abs + (VR_hmd_forward * (-(eyez * VR_scale)));
-	view_temp_origin = view_temp_origin + (VR_hmd_right * (ipd * VR_scale));
+	//view_temp_origin = view_temp_origin + (VR_hmd_right * (ipd * VR_scale));
+	view_temp_origin = view_temp_origin + (VR_hmd_right * (ipd * VRMOD_ipd_scale.GetFloat()));
+
 	return view_temp_origin;
 }
 
@@ -1197,6 +1297,7 @@ Vector VRMOD_GetRightControllerAbsPos()
 {
 	return VR_controller_right_pos_abs;
 }
+
 
 // Used for making the player face the right direction when spawning
 void VRMOD_SetSpawnPlayerHMDAngles()

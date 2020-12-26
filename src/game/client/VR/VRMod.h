@@ -2,6 +2,8 @@
 #include <stdint.h>
 #include <imaterialsystem.h>
 
+
+
 // Globals
 int VRMod_Started = 0;
 ITexture * RenderTarget_VRMod = NULL;
@@ -9,6 +11,8 @@ float g_horizontalFOVLeft = 0;
 float g_horizontalFOVRight = 0;
 float g_aspectRatioLeft = 0;
 float g_aspectRatioRight = 0;
+
+
 
 
 
@@ -45,3 +49,4 @@ QAngle VRMOD_GetRightControllerAbsAngle();
 Vector VRMOD_GetRightControllerAbsPos();
 
 void VRMOD_SetSpawnPlayerHMDAngles();
+
