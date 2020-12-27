@@ -3,4 +3,4 @@ A TF2 VR port with handtracking for SteamVR. Based on the 2008 source code and G
 
 Latest progress video:
 
-https://www.youtube.com/watch?v=ZJuhIfdsfgY&t=3s
+https://www.youtube.com/watch?v=91TuXxQckJI
