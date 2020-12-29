@@ -8,13 +8,21 @@
 #include <convar.h>
 #include <synchapi.h>
 #include <processthreadsapi.h>
-#include <isourcevirtualreality.h>
+//#include <isourcevirtualreality.h>
 #include <imaterialsystem.h>
-#include <cdll_client_int.h>
+//#include <cdll_client_int.h>
 #include <thread>
 #include <vector>
-#include "c_baseentity.h"		// Recently added for headtracking calculations
-#include "c_tf_player.h"		// Recently added for headtracking calculations
+//#include "c_baseentity.h"		// Recently added for headtracking calculations
+
+
+#if defined( CLIENT_DLL )			// Client specific.
+	#include "c_tf_player.h"		// Recently added for headtracking calculations
+#else
+	#include "tf_player.h"
+#endif
+
+
 #include <VRMod.h>
 
 
@@ -235,7 +243,10 @@ struct ActionsSkeletonStruct {
 ActionsSkeletonStruct ActionsSkeleton[MAX_ACTIONS];
 
 // Globals for Headtracking
-C_TFPlayer *pPlayer = NULL;													// The player character
+#if defined( CLIENT_DLL )			// Client specific.
+	C_TFPlayer *pPlayer = NULL;													// The player character
+#endif
+//CTFPlayer *pPlayer = NULL;
 float VR_scale = 52.49;				// 1 meter = 52.49 Hammer Units		// The VR scale used if we want 1:1 based on map units
 //float VR_scale = 39.37012415030996;											// Alternative scale if we want to base it on 1:1 realistic character units
 Vector VR_origin = Vector(0, 0, 0);											// The absolute world position of our Tracked VR origin point.
@@ -828,9 +839,14 @@ void VRMOD_Start() {
 	VRMOD_SetActionManifest("vrmod_action_manifest.txt");	// Newly added for headtracking.
 	ActiveActionSetNames[0] = "/actions/vrmod";
 	VRMOD_SetActiveActionSets();
-	pPlayer = (C_TFPlayer *)C_BasePlayer::GetLocalPlayer();
-	VRMOD_UtilSetOrigin(pPlayer->EyePosition());
-	VRMOD_UtilHandleTracking();
+	#if defined( CLIENT_DLL )			// Client specific.
+		pPlayer = (C_TFPlayer *)C_BasePlayer::GetLocalPlayer();
+	#endif
+	//pPlayer = (CTFPlayer *)CBasePlayer::GetLocalPlayer();
+	//VRMOD_UtilSetOrigin(pPlayer->EyePosition());
+	#if defined( CLIENT_DLL )			// Client specific.
+		VRMOD_UtilHandleTracking();
+	#endif
 	VRMod_Started = 1;
 
 }
@@ -936,7 +952,7 @@ void VRMOD_UtilSetOriginAngle(QAngle ang)
 }
 
 
-
+#if defined( CLIENT_DLL )			// Client specific.
 void VRMOD_UtilHandleTracking()
 {
 	VRMOD_GetPoses();
@@ -1010,7 +1026,9 @@ void VRMOD_UtilHandleTracking()
 
 	return;
 }
+#endif
 
+#if defined( CLIENT_DLL )			// Client specific.
 void VRMOD_Process_input()
 {
 
@@ -1205,7 +1223,7 @@ void VRMOD_Process_input()
 
 	return;
 }
-
+#endif
 
 
 void VRMOD_Show_poses()

@@ -12,6 +12,7 @@
 #include "tf_projectile_nail.h"
 #include "VRMod.h"						// Virtual Fortress 2 specific stuff, mainly to enable manual aiming via motion controllers
 
+
 #if !defined( CLIENT_DLL )	// Server specific.
 
 	#include "tf_gamestats.h"
