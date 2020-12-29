@@ -1,7 +1,7 @@
 #include "cbase.h"
 #include <stdio.h>
 #include <d3d9.h>
-#include <D3D11.h>
+#include "D3D11.h"
 #include <Windows.h>
 #include <openvr.h>
 #include <MinHook.h>
@@ -71,8 +71,7 @@
 
 
 
-						- When we compile the game for Release and then launch it via steam, the Source SDK 2013 Multiplayer
-						  resets it's openvr.dll to it's previous way lighter version that gives us errors.
+
 
 
 						- Trying to load Gravelpit crashes the game for some reason. Error is in tf_mapinfomenu.cpp
@@ -82,7 +81,15 @@
 
 
 
-	Fixed issues:		- We get up to ShareTextureFinish. That one crashes the game and gives us: OpenSharedResource failedException thrown: read access violation.
+	Fixed issues:		- When we compile the game for Release and then launch it via steam, the Source SDK 2013 Multiplayer
+						  resets it's openvr.dll to it's previous way lighter version that gives us errors.
+
+						  FIX: Launching the mod directly from hl2.exe via a .bat file ( as done in Release 2) circumvents this issue.
+	
+	
+	
+	
+						- We get up to ShareTextureFinish. That one crashes the game and gives us: OpenSharedResource failedException thrown: read access violation.
 						  **res** was nullptr.
 
 						FIX:

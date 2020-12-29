@@ -10,6 +10,7 @@
 #include "effect_dispatch_data.h"
 #include "takedamageinfo.h"
 #include "tf_projectile_nail.h"
+#include "VRMod.h"						// Virtual Fortress 2 specific stuff, mainly to enable manual aiming via motion controllers
 
 #if !defined( CLIENT_DLL )	// Server specific.
 
@@ -240,8 +241,10 @@ void CTFWeaponBaseGun::FireBullet( CTFPlayer *pPlayer )
 
 	FX_FireBullets(
 		pPlayer->entindex(),
-		pPlayer->Weapon_ShootPosition(),
-		pPlayer->EyeAngles() + pPlayer->GetPunchAngle(),
+		//pPlayer->Weapon_ShootPosition(),
+		VRMOD_GetRecommendedViewmodelAbsPos(),
+		//pPlayer->EyeAngles() + pPlayer->GetPunchAngle(),
+		VRMOD_GetRightControllerAbsAngle() + pPlayer->GetPunchAngle(),
 		GetWeaponID(),
 		m_iWeaponMode,
 		CBaseEntity::GetPredictionRandomSeed() & 255,
