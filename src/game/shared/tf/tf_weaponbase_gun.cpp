@@ -242,10 +242,11 @@ void CTFWeaponBaseGun::FireBullet( CTFPlayer *pPlayer )
 
 	FX_FireBullets(
 		pPlayer->entindex(),
+		//Custom VRMOD Code
 		//pPlayer->Weapon_ShootPosition(),
 		VRMOD_GetRecommendedViewmodelAbsPos(),
 		//pPlayer->EyeAngles() + pPlayer->GetPunchAngle(),
-		VRMOD_GetRightControllerAbsAngle() + pPlayer->GetPunchAngle(),
+		VRMOD_GetRecommendedViewmodelAbsAngle() + pPlayer->GetPunchAngle(),
 		GetWeaponID(),
 		m_iWeaponMode,
 		CBaseEntity::GetPredictionRandomSeed() & 255,
@@ -286,9 +287,12 @@ public:
 void CTFWeaponBaseGun::GetProjectileFireSetup( CTFPlayer *pPlayer, Vector vecOffset, Vector *vecSrc, QAngle *angForward, bool bHitTeammates /* = true */ )
 {
 	Vector vecForward, vecRight, vecUp;
-	AngleVectors( pPlayer->EyeAngles(), &vecForward, &vecRight, &vecUp );
+	// Custom VRMOD Code
+	//AngleVectors( pPlayer->EyeAngles(), &vecForward, &vecRight, &vecUp );
+	AngleVectors(VRMOD_GetRecommendedViewmodelAbsAngle(), &vecForward, &vecRight, &vecUp);
 
-	Vector vecShootPos = pPlayer->Weapon_ShootPosition();
+	//Vector vecShootPos = pPlayer->Weapon_ShootPosition();
+	Vector vecShootPos = VRMOD_GetRecommendedViewmodelAbsPos();
 
 	// Estimate end point
 	Vector endPos = vecShootPos + vecForward * 2000;	
@@ -404,10 +408,13 @@ CBaseEntity *CTFWeaponBaseGun::FirePipeBomb( CTFPlayer *pPlayer, bool bRemoteDet
 #ifdef GAME_DLL
 
 	Vector vecForward, vecRight, vecUp;
-	AngleVectors( pPlayer->EyeAngles(), &vecForward, &vecRight, &vecUp );
+	// CUstom VRMOD Code
+	//AngleVectors( pPlayer->EyeAngles(), &vecForward, &vecRight, &vecUp );
+	AngleVectors(VRMOD_GetRecommendedViewmodelAbsAngle(), &vecForward, &vecRight, &vecUp);
 
 	// Create grenades here!!
-	Vector vecSrc = pPlayer->Weapon_ShootPosition();
+	//Vector vecSrc = pPlayer->Weapon_ShootPosition();
+	Vector vecSrc = VRMOD_GetRecommendedViewmodelAbsPos();
 	vecSrc +=  vecForward * 16.0f + vecRight * 8.0f + vecUp * -6.0f;
 	
 	Vector vecVelocity = ( vecForward * GetProjectileSpeed() ) + ( vecUp * 200.0f ) + ( random->RandomFloat( -10.0f, 10.0f ) * vecRight ) +		

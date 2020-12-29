@@ -7,6 +7,7 @@
 // Globals
 int VRMod_Started = 0;
 ITexture * RenderTarget_VRMod = NULL;
+ITexture * RenderTarget_VRMod_GUI = NULL;
 float g_horizontalFOVLeft = 0;
 float g_horizontalFOVRight = 0;
 float g_aspectRatioLeft = 0;

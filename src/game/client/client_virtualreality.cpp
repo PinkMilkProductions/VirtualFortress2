@@ -22,6 +22,7 @@
 #include "tier0/vprof_telemetry.h"
 #include <time.h>
 #include "steam/steam_api.h"
+#include <VRMod.h>					// For Virtual Fortress 2 related things
 
 const char *COM_GetModDirectory(); // return the mod dir (rather than the complete -game param, which can be a path)
 
@@ -90,6 +91,11 @@ ConVar vr_viewmodel_offset_forward_large( "vr_viewmodel_offset_forward_large", "
 ConVar vr_force_windowed ( "vr_force_windowed", "0", FCVAR_ARCHIVE );
 
 ConVar vr_first_person_uses_world_model ( "vr_first_person_uses_world_model", "1", 0, "Causes the third person model to be drawn instead of the view model" );
+
+
+
+
+
 
 // --------------------------------------------------------------------
 // Purpose: Cycle through the aim & move modes.
@@ -1082,13 +1088,14 @@ void CClientVirtualReality::GetHUDBounds( Vector *pViewer, Vector *pUL, Vector *
 void CClientVirtualReality::RenderHUDQuad( bool bBlackout, bool bTranslucent )
 {
 	// If we can overlay the HUD directly onto the target later, we'll do that instead (higher image quality).
-	if ( CanOverlayHudQuad() )
-		return;
+	//if ( CanOverlayHudQuad() )
+	//	return;
 
 	Vector vHead, vUL, vUR, vLL, vLR;
 	GetHUDBounds ( &vHead, &vUL, &vUR, &vLL, &vLR );
 
 	CMatRenderContextPtr pRenderContext( materials );
+
 
 	{
 		IMaterial *mymat = NULL;
@@ -1322,12 +1329,14 @@ void CClientVirtualReality::PostProcessFrame( StereoEye_t eEye )
 // --------------------------------------------------------------------
 void CClientVirtualReality::OverlayHUDQuadWithUndistort( const CViewSetup &eyeView, bool bDoUndistort, bool bBlackout, bool bTranslucent )
 {
-	if ( ! UseVR() )
+	// Custom VRMOD Code
+	//if ( ! UseVR() )
+	if (!VRMod_Started)
 		return;
 
 	// If we can't overlay the HUD, it will be handled on another path (rendered into the scene with RenderHUDQuad()).
-	if ( ! CanOverlayHudQuad() )
-		return;
+	//if ( ! CanOverlayHudQuad() )
+	//	return;
 
 	// Get the position of the HUD quad in world space as used by RenderHUDQuad().  Then convert to a rectangle in normalized
 	// device coordinates.

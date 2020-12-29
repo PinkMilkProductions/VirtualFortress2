@@ -53,6 +53,7 @@
 #include "clientmode_shared.h"
 #include "sourcevr/isourcevirtualreality.h"
 #include "client_virtualreality.h"
+#include <vgui/IVGui.h>
 #include "VRMod.h"
 
 #ifdef PORTAL
@@ -1925,13 +1926,17 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 	//	width_VR = VRMOD_GetRecWidth();
 	//	height_VR = VRMOD_GetRecHeight();
 	//}
+
+
 	CViewSetup view_temp = view_const;
-	if (!SecondEyeRenderPass && VRMod_Started) {		// If we're gonna renderfor the first eye
+	if (!SecondEyeRenderPass && VRMod_Started) {		// If we're gonna render for the first eye
 		view_temp.x = 0;
 		view_temp.width = width_VR;
 		//view_temp.width = 640;
 		//view_temp.height = 720;
 		view_temp.height = height_VR;
+		view_temp.m_nUnscaledWidth = width_VR;			// Hoping this will let us render at a higher resolution
+		view_temp.m_nUnscaledHeight = height_VR;		// Hoping this will let us render at a higher resolution
 		view_temp.fov = g_horizontalFOVLeft;
 		view_temp.fovViewmodel = g_horizontalFOVLeft;
 		view_temp.m_flAspectRatio = g_aspectRatioLeft;
@@ -1948,6 +1953,8 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 		//view_temp.width = 640;
 		//view_temp.height = 720;
 		view_temp.height = height_VR;
+		view_temp.m_nUnscaledWidth = width_VR;			// Hoping this will let us render at a higher resolution
+		view_temp.m_nUnscaledHeight = height_VR;		// Hoping this will let us render at a higher resolution
 		view_temp.fov = g_horizontalFOVRight;
 		view_temp.fovViewmodel = g_horizontalFOVRight;
 		view_temp.m_flAspectRatio = g_aspectRatioRight;
@@ -1991,7 +1998,14 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 	
 	if ((VRMod_Started == 1) && (RenderTargetIsVRMOD == 0))		// Switch RenderTarget To the VR one
 	{
+		//materials->SetRenderTargetFrameBufferSizeOverrides(2 * width_VR, height_VR);
 		pRenderContext->SetRenderTarget(RenderTarget_VRMod);
+		//g_pMatSystemSurface->ForceScreenSizeOverride(true, 2 * width_VR, height_VR);
+		//g_pMatSystemSurface->SetFullscreenViewportAndRenderTarget(0, 0, 2 * width_VR, height_VR, RenderTarget_VRMod);
+		vgui::ivgui()->SetVRMode(true);
+		//char szCmd[256];
+		//Q_snprintf(szCmd, sizeof(szCmd), "mat_setvideomode %i %i %i\n", 2 * width_VR, height_VR, false);
+		//engine->ClientCmd_Unrestricted(szCmd);
 		RenderTargetIsVRMOD = 1;    // This either speeds things up or makes the renderer stop sending frames to our VR rendertarget after the first one. Come back to this later.
 	}
 
@@ -2240,7 +2254,9 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 
 	Render2DEffectsPreHUD( view );
 
-	if ( whatToDraw & RENDERVIEW_DRAWHUD )
+	// Debugging thing
+	//if ( whatToDraw & RENDERVIEW_DRAWHUD )
+	if (true)
 	{
 		VPROF_BUDGET( "VGui_DrawHud", VPROF_BUDGETGROUP_OTHER_VGUI );
 		int viewWidth = view.m_nUnscaledWidth;
@@ -2256,9 +2272,13 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 		bool bClear = false;
 		bool bPaintMainMenu = false;
 		ITexture *pTexture = NULL;
-		if( UseVR() )
+
+		//Custom VRMOD Code
+		//if( UseVR() )
+		if (VRMod_Started == 1)
 		{
-			if( g_ClientVirtualReality.ShouldRenderHUDInWorld() )
+			//if( g_ClientVirtualReality.ShouldRenderHUDInWorld() )
+			if (true)
 			{
 				pTexture = materials->FindTexture( "_rt_gui", NULL, false );
 				if( pTexture )
@@ -2304,7 +2324,10 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 		}
 
 		// let vgui know where to render stuff for the forced-to-framebuffer panels
-		if( UseVR() )
+
+		// Custom VRMOD Code
+		//if( UseVR() )
+		if (VRMod_Started)
 		{
 			g_pMatSystemSurface->SetFullscreenViewportAndRenderTarget( viewFramebufferX, viewFramebufferY, viewFramebufferWidth, viewFramebufferHeight, saveRenderTarget );
 		}
@@ -2357,14 +2380,18 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 		}
 		pRenderContext->PopRenderTargetAndViewport();
 
-		if ( UseVR() )
+		// CUSTOM VRMOD Code
+
+		//if ( UseVR() )
+		if (VRMod_Started == 1)
 		{
 			// figure out if we really want to draw the HUD based on freeze cam
 			C_BasePlayer *pPlayer = C_BasePlayer::GetLocalPlayer();
 			bool bInFreezeCam = ( pPlayer && pPlayer->GetObserverMode() == OBS_MODE_FREEZECAM );
 
 			// draw the HUD after the view model so its "I'm closer" depth queues work right.
-			if( !bInFreezeCam && g_ClientVirtualReality.ShouldRenderHUDInWorld() )
+			//if( !bInFreezeCam && g_ClientVirtualReality.ShouldRenderHUDInWorld() )
+			if (!bInFreezeCam)
 			{
 				// Now we've rendered the HUD to its texture, actually get it on the screen.
 				// Since we're drawing it as a 3D object, we need correctly set up frustum, etc.
@@ -2373,7 +2400,8 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 
 				// TODO - a bit of a shonky test - basically trying to catch the main menu, the briefing screen, the loadout screen, etc.
 				bool bTranslucent = !g_pMatSystemSurface->IsCursorVisible();
-				g_ClientVirtualReality.RenderHUDQuad( g_pClientMode->ShouldBlackoutAroundHUD(), bTranslucent );
+				//g_ClientVirtualReality.RenderHUDQuad( g_pClientMode->ShouldBlackoutAroundHUD(), bTranslucent );
+				g_ClientVirtualReality.RenderHUDQuad(false, false);
 				CleanupMain3DView( view );
 			}
 		}

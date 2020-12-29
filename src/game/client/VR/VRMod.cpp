@@ -33,12 +33,11 @@
 
 /*
 //*************************************************************************
-//  Current issues:		
-
-						- A whole lot of compile issues. Started by trying to modify baseplayer_shared.cpp
-						Weapon_shootposition.
-						Has to do something with the server project. I was adviced to fix it by adding VRMOD.cpp and .h to the server project so the function is defined there
-						but now it's complaining about d3d11.h
+//  Current issues:		- Handtracked shooting works currently but doesn't register as a valid hit on the server.
+						  I will have to adjust the code in, among other things, void CTFWeaponBaseGun::FireBullet( CTFPlayer *pPlayer )
+						  to work correctly in both the client and server context. Thinking about doing this when i'm fixing multiplayer.
+						  This also means rockets, grenades and stickies currently don't want to shoot after they spawn because that's also a server thing.
+						  Medigun also doesn't aim correctly atm but that shouldn't be a server thing.
 
 
 
@@ -89,7 +88,18 @@
 
 
 
-	Fixed issues:		- When we compile the game for Release and then launch it via steam, the Source SDK 2013 Multiplayer
+	Fixed issues:		- A whole lot of compile issues. Started by trying to modify baseplayer_shared.cpp
+							Weapon_shootposition.
+							Has to do something with the server project. I was adviced to fix it by adding VRMOD.cpp and .h to the server project so the function is defined there
+							but now it's complaining about d3d11.h
+
+						FIX: Making sure the External Dependencies d3d11.h for both the client and server projects are referencing the same file in the same directory.
+						I had to delete the Windows 7.1A include path in the server project properties to do that.
+	
+	
+	
+	
+						- When we compile the game for Release and then launch it via steam, the Source SDK 2013 Multiplayer
 						  resets it's openvr.dll to it's previous way lighter version that gives us errors.
 
 						  FIX: Launching the mod directly from hl2.exe via a .bat file ( as done in Release 2) circumvents this issue.
@@ -842,6 +852,7 @@ void VRMOD_Start() {
 	#if defined( CLIENT_DLL )			// Client specific.
 		pPlayer = (C_TFPlayer *)C_BasePlayer::GetLocalPlayer();
 	#endif
+	//RenderTarget_VRMod_GUI = materials->CreateNamedRenderTargetTextureEx("_rt_gui", 2 * recommendedWidth, recommendedHeight, RT_SIZE_DEFAULT, materials->GetBackBufferFormat(), MATERIAL_RT_DEPTH_SHARED, TEXTUREFLAGS_NOMIP);
 	//pPlayer = (CTFPlayer *)CBasePlayer::GetLocalPlayer();
 	//VRMOD_UtilSetOrigin(pPlayer->EyePosition());
 	#if defined( CLIENT_DLL )			// Client specific.
