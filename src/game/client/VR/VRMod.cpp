@@ -1265,8 +1265,8 @@ void GetHUDBounds(Vector *pViewer, Vector *pUL, Vector *pUR, Vector *pLL, Vector
 {
 
 	Vector vHalfWidth = (-VRMOD_GetPlayerRight()) * -32;
-	Vector vHalfHeight = VRMOD_GetPlayerUp() * 32;
-	Vector vHUDOrigin = VRMOD_GetViewOriginLeft() + VRMOD_GetPlayerForward() * 32;
+	Vector vHalfHeight = VRMOD_GetPlayerUp() * 18;
+	Vector vHUDOrigin = VRMOD_GetViewOriginLeft() + VRMOD_GetPlayerForward() * 40;
 
 	*pViewer = VRMOD_GetViewOriginLeft();
 	*pUL = vHUDOrigin - vHalfWidth + vHalfHeight;
