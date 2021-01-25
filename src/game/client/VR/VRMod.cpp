@@ -18,6 +18,7 @@
 
 #if defined( CLIENT_DLL )			// Client specific.
 	#include "c_tf_player.h"		// Recently added for headtracking calculations
+	#include <baseviewmodel_shared.h>
 #else
 	#include "tf_player.h"
 #endif
@@ -33,6 +34,11 @@
 
 /*
 //*************************************************************************
+
+// NOTES:				- turns out view.cpp has void CViewRender::Render( vrect_t *rect ) which calculates the view and render flags before viewrender happens and i do my VR stuff.
+						  I should move my VR rendering code from viewrender to there probably.
+
+
 //  Current issues:		- Handtracked shooting works currently but doesn't register as a valid hit on the server.
 						  I will have to adjust the code in, among other things, void CTFWeaponBaseGun::FireBullet( CTFPlayer *pPlayer )
 						  to work correctly in both the client and server context. Thinking about doing this when i'm fixing multiplayer.
@@ -255,7 +261,10 @@ ActionsSkeletonStruct ActionsSkeleton[MAX_ACTIONS];
 // Globals for Headtracking
 #if defined( CLIENT_DLL )			// Client specific.
 	C_TFPlayer *pPlayer = NULL;													// The player character
+#else								// Server specific
+	CTFPlayerShared *pPlayer = NULL;
 #endif
+int LocalPlayerIndex = 0;
 //CTFPlayer *pPlayer = NULL;
 float VR_scale = 52.49;				// 1 meter = 52.49 Hammer Units		// The VR scale used if we want 1:1 based on map units
 //float VR_scale = 39.37012415030996;											// Alternative scale if we want to base it on 1:1 realistic character units
@@ -293,6 +302,8 @@ bool switch_up_just_switched = false;										// For Action controlled weapon s
 bool switch_down_just_switched = false;
 int switch_up_counter = 0;
 int switch_down_counter = 0;
+
+Vector WeaponOffset = Vector(0, 0, 0);										// For viewmodel and shooting positions stuff
 
 // Convars that the players can set themselves if they want to
 ConVar VRMOD_ipd_scale("VRMOD_ipd_scale", "52.49", 0, "sets the scale used exclusively for IPD distance. Valid inputs between 1 and 100", true, 1.0f, true, 100.0f);
@@ -362,9 +373,9 @@ void VRMOD_GetVersion() {
 	Msg("Current Virtual Fortress 2 version is : %i", Virtual_Fortress_2_version);
     return;
 }
-
+#if defined( CLIENT_DLL )			// Client specific.
 ConCommand vrmod_getversion("vrmod_getversion", VRMOD_GetVersion, "Returns the current version of the Virtual Fortress 2 mod.");
-
+#endif
 //*************************************************************************
 //    VRMOD_Init():		Initialize SteamVR and set some important globals						// converted properly for Virtual Fortress 2 now.
 //*************************************************************************
@@ -417,9 +428,9 @@ ConCommand vrmod_getversion("vrmod_getversion", VRMOD_GetVersion, "Returns the c
 
     return;
  }
-
+#if defined( CLIENT_DLL )			// Client specific.
  ConCommand vrmod_init("vrmod_init", VRMOD_Init, "Starts VRMod and SteamVR.");
-
+#endif
 //*************************************************************************
 //    VRMOD_SetActionManifest(fileName)													// Probably converted properly for Virtual Fortress 2 now.
 //*************************************************************************
@@ -846,14 +857,22 @@ void VRMOD_Start() {
 	//RenderTarget_VRMod = g_pMaterialSystem->CreateNamedRenderTargetTextureEx("vrmod_rt", 2 * recommendedWidth, recommendedHeight, RT_SIZE_DEFAULT, g_pMaterialSystem->GetBackBufferFormat(), MATERIAL_RT_DEPTH_SHARED, TEXTUREFLAGS_NOMIP);
 	RenderTarget_VRMod = materials->CreateNamedRenderTargetTextureEx("vrmod_rt", 2 * recommendedWidth, recommendedHeight, RT_SIZE_DEFAULT, materials->GetBackBufferFormat(), MATERIAL_RT_DEPTH_SHARED, TEXTUREFLAGS_NOMIP);
 	VRMOD_ShareTextureFinish();
+
+
 	VRMOD_SetActionManifest("vrmod_action_manifest.txt");	// Newly added for headtracking.
 	ActiveActionSetNames[0] = "/actions/vrmod";
 	VRMOD_SetActiveActionSets();
+
+
 	#if defined( CLIENT_DLL )			// Client specific.
-		pPlayer = (C_TFPlayer *)C_BasePlayer::GetLocalPlayer();
+		//pPlayer = (C_TFPlayer *)C_BasePlayer::GetLocalPlayer();
+		pPlayer = ToTFPlayer(C_BasePlayer::GetLocalPlayer());
+		LocalPlayerIndex = GetLocalPlayerIndex();
+	#else								// Server specific
+		pPlayer = (CTFPlayerShared *)UTIL_PlayerByIndex(LocalPlayerIndex);
 	#endif
-	//RenderTarget_VRMod_GUI = materials->CreateNamedRenderTargetTextureEx("_rt_gui", 2 * recommendedWidth, recommendedHeight, RT_SIZE_DEFAULT, materials->GetBackBufferFormat(), MATERIAL_RT_DEPTH_SHARED, TEXTUREFLAGS_NOMIP);
-	//pPlayer = (CTFPlayer *)CBasePlayer::GetLocalPlayer();
+
+	RenderTarget_VRMod_GUI = materials->CreateNamedRenderTargetTextureEx("_rt_gui", 2 * recommendedWidth, recommendedHeight, RT_SIZE_DEFAULT, materials->GetBackBufferFormat(), MATERIAL_RT_DEPTH_SHARED, TEXTUREFLAGS_NOMIP);
 	//VRMOD_UtilSetOrigin(pPlayer->EyePosition());
 	#if defined( CLIENT_DLL )			// Client specific.
 		VRMOD_UtilHandleTracking();
@@ -861,8 +880,9 @@ void VRMOD_Start() {
 	VRMod_Started = 1;
 
 }
+#if defined( CLIENT_DLL )			// Client specific.
 ConCommand vrmod_start("vrmod_start", VRMOD_Start, "Finally starts VRMod");
-
+#endif
 
 //*************************************************************************
 //    VRMOD_Shutdown()																			// converted properly for Virtual Fortress 2 now.
@@ -888,9 +908,9 @@ void VRMOD_Shutdown() {
 	
     return;
 }
-
+#if defined( CLIENT_DLL )			// Client specific.
 ConCommand vrmod_shutdown("vrmod_shutdown", VRMOD_Shutdown, "Stops VRMod and SteamVR and cleans up.");
-
+#endif
 
 //*************************************************************************
 //    Lua function: VRMOD_TriggerHaptic(actionName, delay, duration, frequency, amplitude)				// converted properly for Virtual Fortress 2 now.
@@ -926,9 +946,9 @@ void VRMOD_GetTrackedDeviceNames() {
 	return ;
     //return 1;
 }
-
+#if defined( CLIENT_DLL )			// Client specific.
 ConCommand vrmod_get_tracked_device_names("vrmod_get_tracked_device_names", VRMOD_GetTrackedDeviceNames, "Debug info.");
-
+#endif
 
 int VRMOD_GetRecWidth()																					// works properly for Virtual Fortress 2 now.
 {
@@ -1237,6 +1257,143 @@ void VRMOD_Process_input()
 #endif
 
 
+// --------------------------------------------------------------------
+// Purpose: Returns the bounds in world space where the game should 
+//			position the HUD.
+// --------------------------------------------------------------------
+void GetHUDBounds(Vector *pViewer, Vector *pUL, Vector *pUR, Vector *pLL, Vector *pLR)
+{
+
+	Vector vHalfWidth = (-VRMOD_GetPlayerRight()) * -32;
+	Vector vHalfHeight = VRMOD_GetPlayerUp() * 32;
+	Vector vHUDOrigin = VRMOD_GetViewOriginLeft() + VRMOD_GetPlayerForward() * 32;
+
+	*pViewer = VRMOD_GetViewOriginLeft();
+	*pUL = vHUDOrigin - vHalfWidth + vHalfHeight;
+	*pUR = vHUDOrigin + vHalfWidth + vHalfHeight;
+	*pLL = vHUDOrigin - vHalfWidth - vHalfHeight;
+	*pLR = vHUDOrigin + vHalfWidth - vHalfHeight;
+}
+
+
+#if defined( CLIENT_DLL )			// Client specific.
+// --------------------------------------------------------------------
+// Purpose: Renders the HUD in the world.
+// --------------------------------------------------------------------
+void RenderHUDQuad(bool bBlackout, bool bTranslucent)
+{
+
+	Vector vHead, vUL, vUR, vLL, vLR;
+	GetHUDBounds(&vHead, &vUL, &vUR, &vLL, &vLR);
+
+	CMatRenderContextPtr pRenderContext(materials);
+
+
+		IMaterial *mymat = NULL;
+		if (bTranslucent)
+		{
+			mymat = materials->FindMaterial("vgui/inworldui", TEXTURE_GROUP_VGUI);
+		}
+		else
+		{
+			mymat = materials->FindMaterial("vgui/inworldui_opaque", TEXTURE_GROUP_VGUI);
+		}
+		Assert(!mymat->IsErrorMaterial());
+
+		IMesh *pMesh = pRenderContext->GetDynamicMesh(true, NULL, NULL, mymat);
+
+		CMeshBuilder meshBuilder;
+		meshBuilder.Begin(pMesh, MATERIAL_TRIANGLE_STRIP, 2);
+
+		meshBuilder.Position3fv(vLR.Base());
+		meshBuilder.TexCoord2f(0, 1, 1);
+		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
+
+		meshBuilder.Position3fv(vLL.Base());
+		meshBuilder.TexCoord2f(0, 0, 1);
+		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
+
+		meshBuilder.Position3fv(vUR.Base());
+		meshBuilder.TexCoord2f(0, 1, 0);
+		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
+
+		meshBuilder.Position3fv(vUL.Base());
+		meshBuilder.TexCoord2f(0, 0, 0);
+		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
+
+		meshBuilder.End();
+		pMesh->Draw();
+
+	if (bBlackout)
+	{
+		Vector vbUL, vbUR, vbLL, vbLR;
+		// "Reflect" the HUD bounds through the viewer to find the ones behind the head.
+		vbUL = 2 * vHead - vLR;
+		vbUR = 2 * vHead - vLL;
+		vbLL = 2 * vHead - vUR;
+		vbLR = 2 * vHead - vUL;
+
+		IMaterial *mymat = materials->FindMaterial("vgui/black", TEXTURE_GROUP_VGUI);
+		IMesh *pMesh = pRenderContext->GetDynamicMesh(true, NULL, NULL, mymat);
+
+		// Tube around the outside.
+		CMeshBuilder meshBuilder;
+		meshBuilder.Begin(pMesh, MATERIAL_TRIANGLE_STRIP, 8);
+
+		meshBuilder.Position3fv(vLR.Base());
+		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+		meshBuilder.Position3fv(vbLR.Base());
+		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+		meshBuilder.Position3fv(vLL.Base());
+		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+		meshBuilder.Position3fv(vbLL.Base());
+		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+		meshBuilder.Position3fv(vUL.Base());
+		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+		meshBuilder.Position3fv(vbUL.Base());
+		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+		meshBuilder.Position3fv(vUR.Base());
+		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+		meshBuilder.Position3fv(vbUR.Base());
+		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+		meshBuilder.Position3fv(vLR.Base());
+		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+		meshBuilder.Position3fv(vbLR.Base());
+		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+		meshBuilder.End();
+		pMesh->Draw();
+
+		// Cap behind the viewer.
+		meshBuilder.Begin(pMesh, MATERIAL_TRIANGLE_STRIP, 2);
+
+		meshBuilder.Position3fv(vbUR.Base());
+		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+		meshBuilder.Position3fv(vbUL.Base());
+		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+		meshBuilder.Position3fv(vbLR.Base());
+		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+		meshBuilder.Position3fv(vbLL.Base());
+		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+		meshBuilder.End();
+		pMesh->Draw();
+	}
+}
+#endif
+
 void VRMOD_Show_poses()
 {
 	Msg(" local HMD pos x = %.2f \n", TrackedDevicesPoses[0].TrackedDevicePos.x);
@@ -1267,9 +1424,9 @@ void VRMOD_Show_poses()
 	Msg(" absolute right controller angle z = %.2f \n", VR_controller_right_ang_abs.z);
 
 }
-
+#if defined( CLIENT_DLL )			// Client specific.
 ConCommand vrmod_show_poses("vrmod_show_poses", VRMOD_Show_poses, "Debug info.");
-
+#endif
 void VRMOD_General_Debug()
 {
 	actionSet DebugActionSet = g_actionSets[0];
@@ -1282,9 +1439,9 @@ void VRMOD_General_Debug()
 
 	Msg("End of Debug function\n");
 }
-
+#if defined( CLIENT_DLL )			// Client specific.
 ConCommand vrmod_general_debug("vrmod_general_debug", VRMOD_General_Debug, "Debug info.");
-
+#endif
 QAngle VRMOD_GetViewAngle()
 {
 	return VR_hmd_ang_abs;
@@ -1314,10 +1471,29 @@ Vector VRMOD_GetViewOriginRight()
 	return view_temp_origin;
 }
 
+
 Vector VRMOD_GetRecommendedViewmodelAbsPos()
 {
+	Vector VModelPos = Vector(0, 0, 0);
+
+#if defined( CLIENT_DLL )			// Client specific.
+	C_BaseViewModel* VModel = pPlayer->GetViewModel();
+	CTFWeaponBase *pWeapon = assert_cast<CTFWeaponBase*>(VModel->GetWeapon());
+	if (pWeapon)
+	{
+		WeaponOffset = pWeapon->GetViewOffset();
+		VModelPos = VRMOD_GetRightControllerAbsPos() - WeaponOffset;
+	}
+	else
+	{
+		VModelPos = VRMOD_GetRightControllerAbsPos();
+	}
+#else								// Server specific
+	VModelPos = VRMOD_GetRightControllerAbsPos() - WeaponOffset;
+#endif
 	return VR_controller_right_pos_abs;
 }
+
 
 QAngle VRMOD_GetRecommendedViewmodelAbsAngle()
 {
@@ -1339,4 +1515,19 @@ Vector VRMOD_GetRightControllerAbsPos()
 void VRMOD_SetSpawnPlayerHMDAngles()
 {
 	VR_Player_Spawn_HMD_Angles = TrackedDevicesPoses[0].TrackedDeviceAng;
+}
+
+Vector VRMOD_GetPlayerForward()
+{
+	return Player_forward;
+}
+
+Vector VRMOD_GetPlayerRight()
+{
+	return Player_right;
+}
+
+Vector VRMOD_GetPlayerUp()
+{
+	return Player_up;
 }

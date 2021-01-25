@@ -2325,7 +2325,7 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 
 		// let vgui know where to render stuff for the forced-to-framebuffer panels
 
-		// Custom VRMOD Code
+		// Custom VRMod Code
 		//if( UseVR() )
 		if (VRMod_Started)
 		{
@@ -2402,6 +2402,7 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 				bool bTranslucent = !g_pMatSystemSurface->IsCursorVisible();
 				//g_ClientVirtualReality.RenderHUDQuad( g_pClientMode->ShouldBlackoutAroundHUD(), bTranslucent );
 				g_ClientVirtualReality.RenderHUDQuad(false, false);
+				RenderHUDQuad(false, true);
 				CleanupMain3DView( view );
 			}
 		}

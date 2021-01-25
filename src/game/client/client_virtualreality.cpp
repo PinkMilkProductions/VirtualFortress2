@@ -1070,11 +1070,17 @@ bool CClientVirtualReality::CanOverlayHudQuad()
 // --------------------------------------------------------------------
 void CClientVirtualReality::GetHUDBounds( Vector *pViewer, Vector *pUL, Vector *pUR, Vector *pLL, Vector *pLR )
 {
-	Vector vHalfWidth = m_WorldFromHud.GetLeft() * -m_fHudHalfWidth;
-	Vector vHalfHeight = m_WorldFromHud.GetUp() * m_fHudHalfHeight;
-	Vector vHUDOrigin = m_PlayerViewOrigin + m_WorldFromHud.GetForward() * vr_hud_forward.GetFloat();
+	//Vector vHalfWidth = m_WorldFromHud.GetLeft() * -m_fHudHalfWidth;
+	//Vector vHalfHeight = m_WorldFromHud.GetUp() * m_fHudHalfHeight;
+	//Vector vHUDOrigin = m_PlayerViewOrigin + m_WorldFromHud.GetForward() * vr_hud_forward.GetFloat();
 
-	*pViewer = m_PlayerViewOrigin;
+	// CUstom VRMod Code
+	Vector vHalfWidth = (-VRMOD_GetPlayerRight()) * -m_fHudHalfWidth;
+	Vector vHalfHeight = VRMOD_GetPlayerUp() * m_fHudHalfHeight;
+	Vector vHUDOrigin = VRMOD_GetViewOriginLeft() + VRMOD_GetPlayerForward() * vr_hud_forward.GetFloat();
+
+	//*pViewer = m_PlayerViewOrigin;
+	*pViewer = VRMOD_GetViewOriginLeft();
 	*pUL = vHUDOrigin - vHalfWidth + vHalfHeight;
 	*pUR = vHUDOrigin + vHalfWidth + vHalfHeight;
 	*pLL = vHUDOrigin - vHalfWidth - vHalfHeight;

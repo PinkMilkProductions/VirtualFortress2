@@ -143,7 +143,7 @@ void CTFViewModel::CalcViewModelView( CBasePlayer *owner, const Vector& eyePosit
 
 	if (VRMod_Started == 1)
 	{
-		CTFWeaponBase *pWeapon = assert_cast<CTFWeaponBase*>(GetWeapon());
+		/*CTFWeaponBase *pWeapon = assert_cast<CTFWeaponBase*>(GetWeapon());
 		if (pWeapon)
 		{
 			Vector WeaponOffset = pWeapon->GetViewOffset();
@@ -152,8 +152,8 @@ void CTFViewModel::CalcViewModelView( CBasePlayer *owner, const Vector& eyePosit
 		else
 		{
 			vecNewOrigin = VRMOD_GetRecommendedViewmodelAbsPos();
-		}
-
+		} */
+		vecNewOrigin = VRMOD_GetRecommendedViewmodelAbsPos();
 		vecNewAngles = VRMOD_GetRecommendedViewmodelAbsAngle();
 	}
 
