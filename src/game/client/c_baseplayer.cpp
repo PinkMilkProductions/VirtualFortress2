@@ -2160,6 +2160,7 @@ C_BaseViewModel *C_BasePlayer::GetViewModel( int index /*= 0*/, bool bObserverOK
 
 	C_BaseViewModel *vm = m_hViewModel[ index ];
 	
+
 	if ( bObserverOK && GetObserverMode() == OBS_MODE_IN_EYE )
 	{
 		C_BasePlayer *target =  ToBasePlayer( GetObserverTarget() );

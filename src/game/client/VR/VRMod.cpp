@@ -285,6 +285,14 @@ Vector VR_hmd_forward;
 Vector VR_hmd_right;
 Vector VR_hmd_up;
 
+Vector VR_controller_left_forward;
+Vector VR_controller_left_right;
+Vector VR_controller_left_up;
+
+Vector VR_controller_right_forward;
+Vector VR_controller_right_right;
+Vector VR_controller_right_up;
+
 Vector Player_forward;
 Vector Player_right;
 Vector Player_up;
@@ -302,8 +310,14 @@ bool switch_up_just_switched = false;										// For Action controlled weapon s
 bool switch_down_just_switched = false;
 int switch_up_counter = 0;
 int switch_down_counter = 0;
+int Trigger_active_counter = 0;
+
+int GestureSelection = 0;
+int GestureMenuIndex = 0;													// For gesture menu selection
 
 Vector WeaponOffset = Vector(0, 0, 0);										// For viewmodel and shooting positions stuff
+
+Vector GestureOrigin = Vector(0, 0, 0);
 
 // Convars that the players can set themselves if they want to
 ConVar VRMOD_ipd_scale("VRMOD_ipd_scale", "52.49", 0, "sets the scale used exclusively for IPD distance. Valid inputs between 1 and 100", true, 1.0f, true, 100.0f);
@@ -1025,6 +1039,8 @@ void VRMOD_UtilHandleTracking()
 	Vector VR_controller_right_pos_local = TrackedDevicesPoses[7].TrackedDevicePos;											// right controller pose is in TrackedDevicesPoses[7]
 	QAngle VR_controller_right_ang_local = TrackedDevicesPoses[7].TrackedDeviceAng;
 
+	AngleVectors(VR_controller_left_ang_local, &VR_controller_left_forward, &VR_controller_left_right, &VR_controller_left_up);			// Get the direction vectors from the local Left controller Qangle
+	AngleVectors(VR_controller_right_ang_local, &VR_controller_right_forward, &VR_controller_right_right, &VR_controller_right_up);			// Get the direction vectors from the local Right controller Qangle
 
 	float VR_controller_left_pos_local_playspace_forward = DotProduct(VR_controller_left_pos_local, VR_playspace_forward);
 	float VR_controller_left_pos_local_playspace_right = DotProduct(VR_controller_left_pos_local, VR_playspace_right);
@@ -1059,6 +1075,66 @@ void VRMOD_UtilHandleTracking()
 }
 #endif
 
+
+void VRMOD_SetGestureOrigin(Vector pos)
+{
+	GestureOrigin = pos;
+	return;
+}
+
+#if defined( CLIENT_DLL )			// Client specific.
+int VRMOD_SelectGestureDirection(Vector GesturePos, Vector Forward, Vector Right, Vector Up, float MinSelectionDistance=4.0f)
+{
+	int SelectedDirection = 0;		// Default value = At center, not far enough to select a real direction
+	Vector GestureDistance = GesturePos - GestureOrigin;
+
+	// Express distance in local controller axes
+	float GestureDistance_forward = DotProduct(GestureDistance, Forward);
+	float GestureDistance_right = DotProduct(GestureDistance, Right);
+	float GestureDistance_up = DotProduct(GestureDistance, Up);
+
+	GestureDistance = GestureDistance_forward * Forward + GestureDistance_right * Right + GestureDistance_up * Up;
+
+	// Determine biggest abs component of Vector (-> Direction the player selected)
+	Vector GestureDistanceAbs;
+	VectorAbs(GestureDistance, GestureDistanceAbs);
+	float GestureDistanceAbsMax = VectorMaximum(GestureDistanceAbs);
+
+	if (GestureDistanceAbsMax > MinSelectionDistance)		// If we're far enough from the GestureOrigin to make a selection
+	{
+		if (GestureDistanceAbsMax == GestureDistanceAbs.x) {		// If our max is the X axis
+			if (GestureDistance.x < 0.0f) {			// If negative X axis selected
+				SelectedDirection = 1;
+			}
+			if (GestureDistance.x > 0.0f) {			// If positive X axis selected
+				SelectedDirection = 2;
+			}
+		}
+
+		if (GestureDistanceAbsMax == GestureDistanceAbs.y) {		// If our max is the Y axis
+			if (GestureDistance.y < 0.0f) {			// If negative Y axis selected
+				SelectedDirection = 3;
+			}
+			if (GestureDistance.y > 0.0f) {			// If positive Y axis selected
+				SelectedDirection = 4;
+			}
+		}
+
+		if (GestureDistanceAbsMax == GestureDistanceAbs.z) {		// If our max is the Z axis
+			if (GestureDistance.z < 0.0f) {			// If negative Z axis selected
+				SelectedDirection = 1;
+			}
+			if (GestureDistance.z > 0.0f) {			// If positive Z axis selected
+				SelectedDirection = 2;
+			}
+		}
+	}
+
+	return SelectedDirection;
+
+}
+#endif
+
 #if defined( CLIENT_DLL )			// Client specific.
 void VRMOD_Process_input()
 {
@@ -1079,7 +1155,7 @@ void VRMOD_Process_input()
 	- g_actions[27] = boolean_crouch
 	- g_actions[28] = boolean_medic
 	*/
-
+	
 	VRMOD_GetActions();
 
 	// Movement
@@ -1145,23 +1221,78 @@ void VRMOD_Process_input()
 		engine->ClientCmd("-duck");
 	}
 
-	// Shooting our weapons
-	if (ActionsBool[0].BoolData == true)	// if boolean_primaryfire is true
+	// Right Trigger
+
+	if  (ActionsBool[0].BoolData == true)		 // if boolean_primaryfire is true
 	{
-		engine->ClientCmd("+attack"); 
+		Trigger_active_counter++;
 	}
-	else
+	else 
 	{
-		engine->ClientCmd("-attack");
+		Trigger_active_counter = 0;
 	}
 
-	if (ActionsBool[1].BoolData == true)	// if boolean_secondaryfire is true
-	{
-		engine->ClientCmd("+attack2");
+	C_TFWeaponBase * Weapon = pPlayer->GetActiveTFWeapon();
+	int WeaponID = Weapon->GetWeaponID();
+	//const CTFWeaponInfo WeaponInfo = Weapon->GetTFWpnData();
+	//if (WeaponInfo.m_iWeaponType == TF_WPN_TYPE_PDA)		// If the currently active weapon is the PDA
+	//if (pPlayer->IsPlayerClass(TF_CLASS_ENGINEER) )				// If the player is currently engineer
+	if (WeaponID == TF_WEAPON_PDA_ENGINEER_BUILD)		// If the currently active weapon is the PDA
+	{				
+			if (Trigger_active_counter == 20)					// If we just started holding down the trigger
+			{
+				VRMOD_SetGestureOrigin(VRMOD_GetRightControllerAbsPos());
+				engine->ClientCmd("r_drawviewmodel 0");
+				GestureMenuIndex = 1;
+			}
+			else if (Trigger_active_counter > 20)				// If we are holding down the trigger
+			{
+				GestureSelection = VRMOD_SelectGestureDirection(VRMOD_GetRightControllerAbsPos(), VR_controller_right_forward, VR_controller_right_right, VR_controller_right_up);
+			}
+			else if (GestureMenuIndex != 0)						// If we made our selection
+			{
+				GestureMenuIndex = 0;
+				engine->ClientCmd("r_drawviewmodel 1");
+				switch (GestureSelection)
+				{
+				case 0:
+					break;
+				case 1:
+					engine->ClientCmd("build 2");				// Build a sentry
+					break;
+				case 2:
+					engine->ClientCmd("build 0");				// Build a dispenser
+					break;
+				case 3:
+					engine->ClientCmd("build 1");				// Build a teleporter entrance
+					break;
+				case 4:
+					engine->ClientCmd("build 3");				// Build a teleporter exit
+					break;
+				default:
+					break;
+				}
+			}
 	}
-	else
+	else 
 	{
-		engine->ClientCmd("-attack2");
+		if (ActionsBool[0].BoolData == true)	// if boolean_primaryfire is true
+		{
+			engine->ClientCmd("+attack");
+		}
+		else
+		{
+			engine->ClientCmd("-attack");
+		}
+
+		if (ActionsBool[1].BoolData == true)	// if boolean_secondaryfire is true
+		{
+			engine->ClientCmd("+attack2");
+		}
+		else
+		{
+			engine->ClientCmd("-attack2");
+		}
 	}
 
 
