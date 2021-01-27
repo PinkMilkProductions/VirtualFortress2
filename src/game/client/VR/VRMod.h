@@ -59,3 +59,7 @@ Vector VRMOD_GetPlayerRight();
 Vector VRMOD_GetPlayerUp();
 
 void RenderHUDQuad(bool bBlackout, bool bTranslucent);
+
+#if defined( CLIENT_DLL )			// Client specific.
+void RenderVRCrosshair();
+#endif

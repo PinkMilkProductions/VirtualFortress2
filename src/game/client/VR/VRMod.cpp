@@ -1231,7 +1231,7 @@ void VRMOD_Process_input()
 	{
 		Trigger_active_counter = 0;
 	}
-
+	
 	C_TFWeaponBase * Weapon = pPlayer->GetActiveTFWeapon();
 	int WeaponID = Weapon->GetWeaponID();
 	//const CTFWeaponInfo WeaponInfo = Weapon->GetTFWpnData();
@@ -1420,40 +1420,40 @@ void RenderHUDQuad(bool bBlackout, bool bTranslucent)
 	CMatRenderContextPtr pRenderContext(materials);
 
 
-		IMaterial *mymat = NULL;
-		if (bTranslucent)
-		{
-			mymat = materials->FindMaterial("vgui/inworldui", TEXTURE_GROUP_VGUI);
-		}
-		else
-		{
-			mymat = materials->FindMaterial("vgui/inworldui_opaque", TEXTURE_GROUP_VGUI);
-		}
-		Assert(!mymat->IsErrorMaterial());
+	IMaterial *mymat = NULL;
+	if (bTranslucent)
+	{
+		mymat = materials->FindMaterial("vgui/inworldui", TEXTURE_GROUP_VGUI);
+	}
+	else
+	{
+		mymat = materials->FindMaterial("vgui/inworldui_opaque", TEXTURE_GROUP_VGUI);
+	}
+	Assert(!mymat->IsErrorMaterial());
 
-		IMesh *pMesh = pRenderContext->GetDynamicMesh(true, NULL, NULL, mymat);
+	IMesh *pMesh = pRenderContext->GetDynamicMesh(true, NULL, NULL, mymat);
 
-		CMeshBuilder meshBuilder;
-		meshBuilder.Begin(pMesh, MATERIAL_TRIANGLE_STRIP, 2);
+	CMeshBuilder meshBuilder;
+	meshBuilder.Begin(pMesh, MATERIAL_TRIANGLE_STRIP, 2);
 
-		meshBuilder.Position3fv(vLR.Base());
-		meshBuilder.TexCoord2f(0, 1, 1);
-		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
+	meshBuilder.Position3fv(vLR.Base());
+	meshBuilder.TexCoord2f(0, 1, 1);
+	meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
 
-		meshBuilder.Position3fv(vLL.Base());
-		meshBuilder.TexCoord2f(0, 0, 1);
-		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
+	meshBuilder.Position3fv(vLL.Base());
+	meshBuilder.TexCoord2f(0, 0, 1);
+	meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
 
-		meshBuilder.Position3fv(vUR.Base());
-		meshBuilder.TexCoord2f(0, 1, 0);
-		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
+	meshBuilder.Position3fv(vUR.Base());
+	meshBuilder.TexCoord2f(0, 1, 0);
+	meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
 
-		meshBuilder.Position3fv(vUL.Base());
-		meshBuilder.TexCoord2f(0, 0, 0);
-		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
+	meshBuilder.Position3fv(vUL.Base());
+	meshBuilder.TexCoord2f(0, 0, 0);
+	meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
 
-		meshBuilder.End();
-		pMesh->Draw();
+	meshBuilder.End();
+	pMesh->Draw();
 
 	if (bBlackout)
 	{
@@ -1522,8 +1522,69 @@ void RenderHUDQuad(bool bBlackout, bool bTranslucent)
 		meshBuilder.End();
 		pMesh->Draw();
 	}
+
+	RenderVRCrosshair();
 }
 #endif
+
+#if defined( CLIENT_DLL )			// Client specific.
+void GetVRCrosshairBounds(Vector *pUL, Vector *pUR, Vector *pLL, Vector *pLR)
+{
+	Vector CrosshairForward, CrosshairRight, CrosshairUp;
+	AngleVectors(VRMOD_GetRecommendedViewmodelAbsAngle(), &CrosshairForward, &CrosshairRight, &CrosshairUp);			// Get the direction vectors from the Viewmodel QAngle
+
+	Vector vHalfWidth = (-CrosshairRight) * -16.7;
+	Vector vHalfHeight = CrosshairUp * 16.7;
+	Vector vHUDOrigin = VRMOD_GetRecommendedViewmodelAbsPos() + CrosshairForward * 500;
+
+	*pUL = vHUDOrigin - vHalfWidth + vHalfHeight;
+	*pUR = vHUDOrigin + vHalfWidth + vHalfHeight;
+	*pLL = vHUDOrigin - vHalfWidth - vHalfHeight;
+	*pLR = vHUDOrigin + vHalfWidth - vHalfHeight;
+}
+#endif
+
+#if defined( CLIENT_DLL )			// Client specific.
+void RenderVRCrosshair()
+{
+	Vector vUL, vUR, vLL, vLR;
+	GetVRCrosshairBounds(&vUL, &vUR, &vLL, &vLR);
+
+	CMatRenderContextPtr pRenderContext(materials);
+
+
+	IMaterial *mymat = NULL;
+	mymat = materials->FindMaterial("vgui/crosshairs/default", TEXTURE_GROUP_VGUI);
+
+	Assert(!mymat->IsErrorMaterial());
+
+	IMesh *pMesh = pRenderContext->GetDynamicMesh(true, NULL, NULL, mymat);
+
+	CMeshBuilder meshBuilder;
+	meshBuilder.Begin(pMesh, MATERIAL_TRIANGLE_STRIP, 2);
+
+	meshBuilder.Position3fv(vLR.Base());
+	meshBuilder.TexCoord2f(0, 1, 1);
+	meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
+
+	meshBuilder.Position3fv(vLL.Base());
+	meshBuilder.TexCoord2f(0, 0, 1);
+	meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
+
+	meshBuilder.Position3fv(vUR.Base());
+	meshBuilder.TexCoord2f(0, 1, 0);
+	meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
+
+	meshBuilder.Position3fv(vUL.Base());
+	meshBuilder.TexCoord2f(0, 0, 0);
+	meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
+
+	meshBuilder.End();
+	pMesh->Draw();
+	return;
+}
+#endif
+
 
 void VRMOD_Show_poses()
 {
