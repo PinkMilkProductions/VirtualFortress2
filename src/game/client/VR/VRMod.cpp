@@ -1251,19 +1251,24 @@ void VRMOD_Process_input()
 			}
 			else if (Trigger_active_counter > 20)				// If we are holding down the trigger
 			{
+				GestureMinSelectionDistance = 10.0f;
+
 				GestureSelection = VRMOD_SelectGestureDirection(VRMOD_GetRightControllerAbsPos(), VR_controller_right_forward, VR_controller_right_right, VR_controller_right_up);
 
-				GestureQuadMaterials[0] = "eng_build_sentry_blueprint";
+				GestureQuadMaterials[0] = "hud/eng_build_sentry_blueprint";
 				GestureQuadMaterials[1] = "hud/eng_build_dispenser_blueprint";
 				GestureQuadMaterials[2] = "hud/eng_build_tele_entrance_blueprint";
 				GestureQuadMaterials[3] = "hud/eng_build_tele_exit_blueprint";
 				GestureQuadMaterials[4] = "";
 				GestureQuadMaterials[5] = "";
 
-				GestureForward = VR_controller_right_forward;
-				GestureRight = VR_controller_right_right;
-				GestureUp = VR_controller_right_up;
-				GestureMinSelectionDistance = 4.0f;
+				AngleVectors(VRMOD_GetRightControllerAbsAngle(), &GestureForward, &GestureRight, &GestureUp);
+				
+
+				//GestureForward = VR_controller_right_forward;
+				//GestureRight = VR_controller_right_right;
+				//GestureUp = VR_controller_right_up;
+				
 			}
 			else if (GestureMenuIndex != 0)						// If we made our selection
 			{
@@ -1661,6 +1666,8 @@ void RenderGestureQuads()
 
 			CMatRenderContextPtr pRenderContext(materials);
 
+			pRenderContext->OverrideDepthEnable(true, true);
+
 			IMaterial *mymat = NULL;
 			mymat = materials->FindMaterial(GestureQuadMaterials[i].c_str(), TEXTURE_GROUP_VGUI);
 
@@ -1689,6 +1696,8 @@ void RenderGestureQuads()
 
 			meshBuilder.End();
 			pMesh->Draw();
+
+			pRenderContext->OverrideDepthEnable(false, false);
 		}
 	}
 

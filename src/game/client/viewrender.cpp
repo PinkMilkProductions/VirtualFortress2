@@ -2088,6 +2088,10 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 		DisableFog();
 
 		// Finish scene
+		if (VRMod_Started == 1)
+		{
+			RenderHUDQuad(false, true);
+		}
 		render->SceneEnd();
 
 		// Draw lightsources if enabled
@@ -2402,7 +2406,7 @@ void CViewRender::RenderView( const CViewSetup &view_const, int nClearFlags, int
 				bool bTranslucent = !g_pMatSystemSurface->IsCursorVisible();
 				//g_ClientVirtualReality.RenderHUDQuad( g_pClientMode->ShouldBlackoutAroundHUD(), bTranslucent );
 				g_ClientVirtualReality.RenderHUDQuad(false, false);
-				RenderHUDQuad(false, true);
+				//RenderHUDQuad(false, true);
 				CleanupMain3DView( view );
 			}
 		}
