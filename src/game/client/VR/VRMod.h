@@ -62,4 +62,6 @@ void RenderHUDQuad(bool bBlackout, bool bTranslucent);
 
 #if defined( CLIENT_DLL )			// Client specific.
 void RenderVRCrosshair();
+
+void RenderGestureQuads();
 #endif
