@@ -323,6 +323,7 @@ enum XMenu {Main, Voice1, Voice2, Voice3, ClassSelect};
 XMenu CurrentXMenu = Main;
 
 Vector GestureOrigin = Vector(0, 0, 0);
+Vector GestureOriginLocal = Vector(0, 0, 0);
 std::string GestureQuadMaterials[6] = {"", "", "", "", "", ""};
 Vector GestureForward, GestureRight, GestureUp;
 float GestureMinSelectionDistance = 8.0f;
@@ -332,7 +333,7 @@ Vector WeaponOffset = Vector(0, 0, 0);										// For viewmodel and shooting po
 
 // Convars that the players can set themselves if they want to
 ConVar VRMOD_ipd_scale("VRMOD_ipd_scale", "52.49", 0, "sets the scale used exclusively for IPD distance. Valid inputs between 1 and 100", true, 1.0f, true, 100.0f);
-
+ConVar VRMOD_render_VR_HUD("VRMOD_render_VR_HUD", "1", 0, "Determines if we render the HUD as a flat plane before your eyes in VR.", true, 0, true, 1);
 
 
 
@@ -1087,9 +1088,10 @@ void VRMOD_UtilHandleTracking()
 #endif
 
 
-void VRMOD_SetGestureOrigin(Vector pos)
+void VRMOD_SetGestureOrigin(Vector pos, Vector posLocal)
 {
 	GestureOrigin = pos;
+	GestureOriginLocal = posLocal;
 	return;
 }
 
@@ -1133,10 +1135,10 @@ int VRMOD_SelectGestureDirection(Vector GesturePos, Vector Forward, Vector Right
 
 		if (GestureDistanceAbsMax == GestureDistanceAbs.z) {		// If our max is the Z axis
 			if (GestureDistance.z < 0.0f) {			// If negative Z axis selected
-				SelectedDirection = 1;
+				SelectedDirection = 5;
 			}
 			if (GestureDistance.z > 0.0f) {			// If positive Z axis selected
-				SelectedDirection = 2;
+				SelectedDirection = 6;
 			}
 		}
 	}
@@ -1245,7 +1247,7 @@ void VRMOD_Process_input()
 		{
 			if (Trigger_active_counter == 20)					// If we just started holding down the trigger
 			{
-				VRMOD_SetGestureOrigin(VRMOD_GetRightControllerAbsPos());
+				VRMOD_SetGestureOrigin(VR_controller_right_pos_abs, TrackedDevicesPoses[7].TrackedDevicePos);
 				engine->ClientCmd("r_drawviewmodel 0");
 				GestureMenuIndex = 1;
 				IsInTriggerMenu = true;
@@ -1254,7 +1256,8 @@ void VRMOD_Process_input()
 			{
 				GestureMinSelectionDistance = 10.0f;
 
-				GestureSelection = VRMOD_SelectGestureDirection(VRMOD_GetRightControllerAbsPos(), VR_controller_right_forward, VR_controller_right_right, VR_controller_right_up);
+				//GestureSelection = VRMOD_SelectGestureDirection(TrackedDevicesPoses[7].TrackedDevicePos, VR_controller_right_forward, VR_controller_right_right, VR_controller_right_up);
+				GestureSelection = VRMOD_SelectGestureDirection(VR_controller_right_pos_abs, VR_hmd_forward, VR_hmd_right, VR_hmd_up);
 
 				GestureQuadMaterials[0] = "hud/eng_build_sentry_blueprint";
 				GestureQuadMaterials[1] = "hud/eng_build_dispenser_blueprint";
@@ -1263,12 +1266,11 @@ void VRMOD_Process_input()
 				GestureQuadMaterials[4] = "";
 				GestureQuadMaterials[5] = "";
 
-				AngleVectors(VRMOD_GetRightControllerAbsAngle(), &GestureForward, &GestureRight, &GestureUp);
+				//AngleVectors(VRMOD_GetRightControllerAbsAngle(), &GestureForward, &GestureRight, &GestureUp);
 
-
-				//GestureForward = VR_controller_right_forward;
-				//GestureRight = VR_controller_right_right;
-				//GestureUp = VR_controller_right_up;
+				GestureForward = VR_hmd_forward;
+				GestureRight = VR_hmd_right;
+				GestureUp = VR_hmd_up;
 
 			}
 		}
@@ -1285,6 +1287,12 @@ void VRMOD_Process_input()
 		{
 			IsInTriggerMenu = false;
 			engine->ClientCmd("r_drawviewmodel 1");
+			GestureQuadMaterials[0] = "";
+			GestureQuadMaterials[1] = "";
+			GestureQuadMaterials[2] = "";
+			GestureQuadMaterials[3] = "";
+			GestureQuadMaterials[4] = "";
+			GestureQuadMaterials[5] = "";
 			switch (GestureSelection)
 			{
 			case 0:
@@ -1406,12 +1414,12 @@ void VRMOD_Process_input()
 		if (X_active_counter == 20)					// once we held down the button long enough
 		{
 			IsInXMenu = true;
-			VRMOD_SetGestureOrigin(VR_controller_left_pos_abs);
+			VRMOD_SetGestureOrigin(VR_controller_left_pos_abs, TrackedDevicesPoses[6].TrackedDevicePos);
 			engine->ClientCmd("r_drawviewmodel 0");
 		}
 		else if (X_active_counter > 20)
 		{
-			GestureMinSelectionDistance = 10.0f;
+			GestureMinSelectionDistance = 0.05f;
 
 			GestureSelection = VRMOD_SelectGestureDirection(VR_controller_left_pos_abs, VR_controller_left_forward, VR_controller_left_right, VR_controller_left_up);
 			AngleVectors(VR_controller_left_ang_abs, &GestureForward, &GestureRight, &GestureUp);
@@ -1485,6 +1493,12 @@ void VRMOD_Process_input()
 			{
 				case Main:
 					GestureMenuIndex = 1;
+					GestureQuadMaterials[0] = "";
+					GestureQuadMaterials[1] = "";
+					GestureQuadMaterials[2] = "";
+					GestureQuadMaterials[3] = "";
+					GestureQuadMaterials[4] = "";
+					GestureQuadMaterials[5] = "";
 					switch (GestureSelection)
 					{
 					case 0:
@@ -1517,6 +1531,12 @@ void VRMOD_Process_input()
 					break;
 
 				case ClassSelect:
+					GestureQuadMaterials[0] = "";
+					GestureQuadMaterials[1] = "";
+					GestureQuadMaterials[2] = "";
+					GestureQuadMaterials[3] = "";
+					GestureQuadMaterials[4] = "";
+					GestureQuadMaterials[5] = "";
 					switch (GestureMenuIndex)
 					{
 					case 1:
@@ -1590,10 +1610,17 @@ void VRMOD_Process_input()
 						}
 						break;
 					}
+					break;
 				case Voice1:
 				case Voice2:
 				case Voice3:
 					CurrentXMenu = Main;
+					GestureQuadMaterials[0] = "";
+					GestureQuadMaterials[1] = "";
+					GestureQuadMaterials[2] = "";
+					GestureQuadMaterials[3] = "";
+					GestureQuadMaterials[4] = "";
+					GestureQuadMaterials[5] = "";
 					break;
 			}
 		}
@@ -1629,116 +1656,117 @@ void GetHUDBounds(Vector *pViewer, Vector *pUL, Vector *pUR, Vector *pLL, Vector
 // --------------------------------------------------------------------
 void RenderHUDQuad(bool bBlackout, bool bTranslucent)
 {
-
-	Vector vHead, vUL, vUR, vLL, vLR;
-	GetHUDBounds(&vHead, &vUL, &vUR, &vLL, &vLR);
-
-	CMatRenderContextPtr pRenderContext(materials);
-
-
-	IMaterial *mymat = NULL;
-	if (bTranslucent)
+	if (VRMOD_render_VR_HUD.GetInt())
 	{
-		mymat = materials->FindMaterial("vgui/inworldui", TEXTURE_GROUP_VGUI);
-	}
-	else
-	{
-		mymat = materials->FindMaterial("vgui/inworldui_opaque", TEXTURE_GROUP_VGUI);
-	}
-	Assert(!mymat->IsErrorMaterial());
+		Vector vHead, vUL, vUR, vLL, vLR;
+		GetHUDBounds(&vHead, &vUL, &vUR, &vLL, &vLR);
 
-	IMesh *pMesh = pRenderContext->GetDynamicMesh(true, NULL, NULL, mymat);
+		CMatRenderContextPtr pRenderContext(materials);
 
-	CMeshBuilder meshBuilder;
-	meshBuilder.Begin(pMesh, MATERIAL_TRIANGLE_STRIP, 2);
 
-	meshBuilder.Position3fv(vLR.Base());
-	meshBuilder.TexCoord2f(0, 1, 1);
-	meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
+		IMaterial *mymat = NULL;
+		if (bTranslucent)
+		{
+			mymat = materials->FindMaterial("vgui/inworldui", TEXTURE_GROUP_VGUI);
+		}
+		else
+		{
+			mymat = materials->FindMaterial("vgui/inworldui_opaque", TEXTURE_GROUP_VGUI);
+		}
+		Assert(!mymat->IsErrorMaterial());
 
-	meshBuilder.Position3fv(vLL.Base());
-	meshBuilder.TexCoord2f(0, 0, 1);
-	meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
-
-	meshBuilder.Position3fv(vUR.Base());
-	meshBuilder.TexCoord2f(0, 1, 0);
-	meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
-
-	meshBuilder.Position3fv(vUL.Base());
-	meshBuilder.TexCoord2f(0, 0, 0);
-	meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
-
-	meshBuilder.End();
-	pMesh->Draw();
-
-	if (bBlackout)
-	{
-		Vector vbUL, vbUR, vbLL, vbLR;
-		// "Reflect" the HUD bounds through the viewer to find the ones behind the head.
-		vbUL = 2 * vHead - vLR;
-		vbUR = 2 * vHead - vLL;
-		vbLL = 2 * vHead - vUR;
-		vbLR = 2 * vHead - vUL;
-
-		IMaterial *mymat = materials->FindMaterial("vgui/black", TEXTURE_GROUP_VGUI);
 		IMesh *pMesh = pRenderContext->GetDynamicMesh(true, NULL, NULL, mymat);
 
-		// Tube around the outside.
 		CMeshBuilder meshBuilder;
-		meshBuilder.Begin(pMesh, MATERIAL_TRIANGLE_STRIP, 8);
-
-		meshBuilder.Position3fv(vLR.Base());
-		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
-
-		meshBuilder.Position3fv(vbLR.Base());
-		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
-
-		meshBuilder.Position3fv(vLL.Base());
-		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
-
-		meshBuilder.Position3fv(vbLL.Base());
-		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
-
-		meshBuilder.Position3fv(vUL.Base());
-		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
-
-		meshBuilder.Position3fv(vbUL.Base());
-		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
-
-		meshBuilder.Position3fv(vUR.Base());
-		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
-
-		meshBuilder.Position3fv(vbUR.Base());
-		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
-
-		meshBuilder.Position3fv(vLR.Base());
-		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
-
-		meshBuilder.Position3fv(vbLR.Base());
-		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
-
-		meshBuilder.End();
-		pMesh->Draw();
-
-		// Cap behind the viewer.
 		meshBuilder.Begin(pMesh, MATERIAL_TRIANGLE_STRIP, 2);
 
-		meshBuilder.Position3fv(vbUR.Base());
-		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+		meshBuilder.Position3fv(vLR.Base());
+		meshBuilder.TexCoord2f(0, 1, 1);
+		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
 
-		meshBuilder.Position3fv(vbUL.Base());
-		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+		meshBuilder.Position3fv(vLL.Base());
+		meshBuilder.TexCoord2f(0, 0, 1);
+		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
 
-		meshBuilder.Position3fv(vbLR.Base());
-		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+		meshBuilder.Position3fv(vUR.Base());
+		meshBuilder.TexCoord2f(0, 1, 0);
+		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
 
-		meshBuilder.Position3fv(vbLL.Base());
-		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+		meshBuilder.Position3fv(vUL.Base());
+		meshBuilder.TexCoord2f(0, 0, 0);
+		meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
 
 		meshBuilder.End();
 		pMesh->Draw();
-	}
 
+		if (bBlackout)
+		{
+			Vector vbUL, vbUR, vbLL, vbLR;
+			// "Reflect" the HUD bounds through the viewer to find the ones behind the head.
+			vbUL = 2 * vHead - vLR;
+			vbUR = 2 * vHead - vLL;
+			vbLL = 2 * vHead - vUR;
+			vbLR = 2 * vHead - vUL;
+
+			IMaterial *mymat = materials->FindMaterial("vgui/black", TEXTURE_GROUP_VGUI);
+			IMesh *pMesh = pRenderContext->GetDynamicMesh(true, NULL, NULL, mymat);
+
+			// Tube around the outside.
+			CMeshBuilder meshBuilder;
+			meshBuilder.Begin(pMesh, MATERIAL_TRIANGLE_STRIP, 8);
+
+			meshBuilder.Position3fv(vLR.Base());
+			meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+			meshBuilder.Position3fv(vbLR.Base());
+			meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+			meshBuilder.Position3fv(vLL.Base());
+			meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+			meshBuilder.Position3fv(vbLL.Base());
+			meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+			meshBuilder.Position3fv(vUL.Base());
+			meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+			meshBuilder.Position3fv(vbUL.Base());
+			meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+			meshBuilder.Position3fv(vUR.Base());
+			meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+			meshBuilder.Position3fv(vbUR.Base());
+			meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+			meshBuilder.Position3fv(vLR.Base());
+			meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+			meshBuilder.Position3fv(vbLR.Base());
+			meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+			meshBuilder.End();
+			pMesh->Draw();
+
+			// Cap behind the viewer.
+			meshBuilder.Begin(pMesh, MATERIAL_TRIANGLE_STRIP, 2);
+
+			meshBuilder.Position3fv(vbUR.Base());
+			meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+			meshBuilder.Position3fv(vbUL.Base());
+			meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+			meshBuilder.Position3fv(vbLR.Base());
+			meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+			meshBuilder.Position3fv(vbLL.Base());
+			meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 0>();
+
+			meshBuilder.End();
+			pMesh->Draw();
+		}
+	}
 	RenderVRCrosshair();
 	if (GestureMenuIndex != 0)
 	{
@@ -1857,7 +1885,7 @@ void RenderGestureQuads()
 		if (!GestureQuadMaterials[i].empty())
 		{
 			Vector vUL, vUR, vLL, vLR;
-			GetGestureQuadsBounds(&vUL, &vUR, &vLL, &vLR, i, GestureForward, GestureRight, GestureUp, GestureMinSelectionDistance);
+			GetGestureQuadsBounds(&vUL, &vUR, &vLL, &vLR, i, GestureForward, GestureRight, GestureUp, 10.0f);
 
 			CMatRenderContextPtr pRenderContext(materials);
 
