@@ -310,10 +310,17 @@ bool switch_up_just_switched = false;										// For Action controlled weapon s
 bool switch_down_just_switched = false;
 int switch_up_counter = 0;
 int switch_down_counter = 0;
-int Trigger_active_counter = 0;
+int Trigger_active_counter = 0;												// Debouncing stuff
+int X_active_counter = 0;
+
+bool IsInTriggerMenu = false;
+bool IsInXMenu = false;
 
 int GestureSelection = 0;
-int GestureMenuIndex = 0;													// For gesture menu selection
+int GestureMenuIndex = 1;													// For gesture menu selection
+
+enum XMenu {Main, Voice1, Voice2, Voice3, ClassSelect};
+XMenu CurrentXMenu = Main;
 
 Vector GestureOrigin = Vector(0, 0, 0);
 std::string GestureQuadMaterials[6] = {"", "", "", "", "", ""};
@@ -1225,29 +1232,23 @@ void VRMOD_Process_input()
 		engine->ClientCmd("-duck");
 	}
 
-	// Right Trigger
 
+
+	// Right Trigger
 	if  (ActionsBool[0].BoolData == true)		 // if boolean_primaryfire is true
 	{
 		Trigger_active_counter++;
-	}
-	else 
-	{
-		Trigger_active_counter = 0;
-	}
-	
-	C_TFWeaponBase * Weapon = pPlayer->GetActiveTFWeapon();
-	int WeaponID = Weapon->GetWeaponID();
-	//const CTFWeaponInfo WeaponInfo = Weapon->GetTFWpnData();
-	//if (WeaponInfo.m_iWeaponType == TF_WPN_TYPE_PDA)		// If the currently active weapon is the PDA
-	//if (pPlayer->IsPlayerClass(TF_CLASS_ENGINEER) )				// If the player is currently engineer
-	if (WeaponID == TF_WEAPON_PDA_ENGINEER_BUILD)		// If the currently active weapon is the PDA
-	{				
+
+		C_TFWeaponBase * Weapon = pPlayer->GetActiveTFWeapon();
+		int WeaponID = Weapon->GetWeaponID();
+		if (WeaponID == TF_WEAPON_PDA_ENGINEER_BUILD)		// If the currently active weapon is the PDA
+		{
 			if (Trigger_active_counter == 20)					// If we just started holding down the trigger
 			{
 				VRMOD_SetGestureOrigin(VRMOD_GetRightControllerAbsPos());
 				engine->ClientCmd("r_drawviewmodel 0");
 				GestureMenuIndex = 1;
+				IsInTriggerMenu = true;
 			}
 			else if (Trigger_active_counter > 20)				// If we are holding down the trigger
 			{
@@ -1263,57 +1264,60 @@ void VRMOD_Process_input()
 				GestureQuadMaterials[5] = "";
 
 				AngleVectors(VRMOD_GetRightControllerAbsAngle(), &GestureForward, &GestureRight, &GestureUp);
-				
+
 
 				//GestureForward = VR_controller_right_forward;
 				//GestureRight = VR_controller_right_right;
 				//GestureUp = VR_controller_right_up;
-				
+
 			}
-			else if (GestureMenuIndex != 0)						// If we made our selection
-			{
-				GestureMenuIndex = 0;
-				engine->ClientCmd("r_drawviewmodel 1");
-				switch (GestureSelection)
-				{
-				case 0:
-					break;
-				case 1:
-					engine->ClientCmd("build 2");				// Build a sentry
-					break;
-				case 2:
-					engine->ClientCmd("build 0");				// Build a dispenser
-					break;
-				case 3:
-					engine->ClientCmd("build 1");				// Build a teleporter entrance
-					break;
-				case 4:
-					engine->ClientCmd("build 3");				// Build a teleporter exit
-					break;
-				default:
-					break;
-				}
-			}
-	}
-	else 
-	{
-		if (ActionsBool[0].BoolData == true)	// if boolean_primaryfire is true
+		}
+		else
 		{
 			engine->ClientCmd("+attack");
+		}
+	}
+	else
+	{
+		Trigger_active_counter = 0;
+
+		if (IsInTriggerMenu)						// If we made our selection
+		{
+			IsInTriggerMenu = false;
+			engine->ClientCmd("r_drawviewmodel 1");
+			switch (GestureSelection)
+			{
+			case 0:
+				break;
+			case 1:
+				engine->ClientCmd("build 2");				// Build a sentry
+				break;
+			case 2:
+				engine->ClientCmd("build 0");				// Build a dispenser
+				break;
+			case 3:
+				engine->ClientCmd("build 1");				// Build a teleporter entrance
+				break;
+			case 4:
+				engine->ClientCmd("build 3");				// Build a teleporter exit
+				break;
+			default:
+				break;
+			}
 		}
 		else
 		{
 			engine->ClientCmd("-attack");
 		}
+	}
 
-		if (ActionsBool[1].BoolData == true)	// if boolean_secondaryfire is true
-		{
-			engine->ClientCmd("+attack2");
-		}
-		else
-		{
-			engine->ClientCmd("-attack2");
-		}
+	if (ActionsBool[1].BoolData == true)	// if boolean_secondaryfire is true
+	{
+		engine->ClientCmd("+attack2");
+	}
+	else
+	{
+		engine->ClientCmd("-attack2");
 	}
 
 
@@ -1394,15 +1398,206 @@ void VRMOD_Process_input()
 
 
 
-	// Spawn a contextual menu. Currently just taunts
-	if (ActionsBool[4].BoolData == true)	// if boolean_spawnmenu is true
+	// Spawn a contextual menu for misc. stuff like class select and taunting.
+
+	if (ActionsBool[4].BoolData == true)		 // if boolean_spawnmenu is true
 	{
-		engine->ClientCmd("taunt");
+		X_active_counter++;
+		if (X_active_counter == 20)					// once we held down the button long enough
+		{
+			IsInXMenu = true;
+			VRMOD_SetGestureOrigin(VR_controller_left_pos_abs);
+			engine->ClientCmd("r_drawviewmodel 0");
+		}
+		else if (X_active_counter > 20)
+		{
+			GestureMinSelectionDistance = 10.0f;
+
+			GestureSelection = VRMOD_SelectGestureDirection(VR_controller_left_pos_abs, VR_controller_left_forward, VR_controller_left_right, VR_controller_left_up);
+			AngleVectors(VR_controller_left_ang_abs, &GestureForward, &GestureRight, &GestureUp);
+
+			switch (CurrentXMenu)
+			{
+			case Main:
+				GestureQuadMaterials[0] = "effects/speech_voice";
+				GestureQuadMaterials[1] = "effects/speech_voice";
+				GestureQuadMaterials[2] = "backpack/player/items/all_class/all_laugh_taunt_large";
+				GestureQuadMaterials[3] = "effects/speech_voice";
+				GestureQuadMaterials[4] = "hud/hud_icon_capture";
+				GestureQuadMaterials[5] = "hud/ico_teamswitch";
+				break;
+			case ClassSelect:
+				switch (GestureMenuIndex)
+				{
+				case 1:
+					GestureQuadMaterials[0] = "hud/leaderboard_class_scout";
+					GestureQuadMaterials[1] = "hud/leaderboard_class_soldier";
+					GestureQuadMaterials[2] = "hud/leaderboard_class_pyro";
+					GestureQuadMaterials[3] = "hud/leaderboard_class_demo";
+					GestureQuadMaterials[4] = "hud/leaderboard_class_heavy";
+					GestureQuadMaterials[5] = "hud/arrow_big";
+					break;
+				case 2:
+					GestureQuadMaterials[0] = "hud/leaderboard_class_engineer";
+					GestureQuadMaterials[1] = "hud/leaderboard_class_medic";
+					GestureQuadMaterials[2] = "hud/leaderboard_class_sniper";
+					GestureQuadMaterials[3] = "hud/leaderboard_class_spy";
+					GestureQuadMaterials[4] = "hud/arrow_big_down";
+					GestureQuadMaterials[5] = "hud/ico_teamswitch";
+					break;
+				}
+				break;
+			case Voice1:
+			case Voice2:
+			case Voice3:
+				switch (GestureMenuIndex)
+				{
+				case 1:
+					GestureQuadMaterials[0] = "effects/speech_voice";
+					GestureQuadMaterials[1] = "effects/speech_voice";
+					GestureQuadMaterials[2] = "effects/speech_voice";
+					GestureQuadMaterials[3] = "effects/speech_voice";
+					GestureQuadMaterials[4] = "effects/speech_voice";
+					GestureQuadMaterials[5] = "hud/arrow_big";
+					break;
+				case 2:
+					GestureQuadMaterials[0] = "effects/speech_voice";
+					GestureQuadMaterials[1] = "effects/speech_voice";
+					GestureQuadMaterials[2] = "effects/speech_voice";
+					GestureQuadMaterials[3] = "effects/speech_voice";
+					GestureQuadMaterials[4] = "hud/arrow_big_down";
+					GestureQuadMaterials[5] = "";
+					break;
+				}
+				break;
+			}
+		}
 	}
+	else
+	{
+		X_active_counter = 0;
 
+		if (IsInXMenu)						// If we made our selection
+		{
+			IsInXMenu = false;
+			engine->ClientCmd("r_drawviewmodel 1");
+			switch (CurrentXMenu)
+			{
+				case Main:
+					GestureMenuIndex = 1;
+					switch (GestureSelection)
+					{
+					case 0:
+						CurrentXMenu = Main;
+						break;
+					case 1:
+						CurrentXMenu = Voice1;
+						break;
+					case 2:
+						CurrentXMenu = Voice3;
+						break;
+					case 3:
+						CurrentXMenu = Main;
+						engine->ClientCmd("taunt");
+						break;
+					case 4:
+						CurrentXMenu = Voice2;
+						break;
+					case 5:
+						CurrentXMenu = Main;
+						engine->ClientCmd("cancelselect");
+						break;
+					case 6:
+						CurrentXMenu = ClassSelect;
+						break;
+					default:
+						CurrentXMenu = Main;
+						break;
+					}
+					break;
 
-
-
+				case ClassSelect:
+					switch (GestureMenuIndex)
+					{
+					case 1:
+						switch (GestureSelection)
+						{
+						case 0:
+							CurrentXMenu = Main;
+							break;
+						case 1:
+							CurrentXMenu = Main;
+							engine->ClientCmd("join_class scout");
+							break;
+						case 2:
+							CurrentXMenu = Main;
+							engine->ClientCmd("join_class soldier");
+							break;
+						case 3:
+							CurrentXMenu = Main;
+							engine->ClientCmd("join_class pyro");
+							break;
+						case 4:
+							CurrentXMenu = Main;
+							engine->ClientCmd("join_class demoman");
+							break;
+						case 5:
+							CurrentXMenu = Main;
+							engine->ClientCmd("join_class heavyweapons");
+							break;
+						case 6:
+							CurrentXMenu = ClassSelect;
+							GestureMenuIndex = 2;
+							break;
+						default:
+							CurrentXMenu = Main;
+							break;
+						}
+						break;
+					case 2:
+						switch (GestureSelection)
+						{
+						case 0:
+							CurrentXMenu = Main;
+							break;
+						case 1:
+							CurrentXMenu = Main;
+							engine->ClientCmd("join_class engineer");
+							break;
+						case 2:
+							CurrentXMenu = Main;
+							engine->ClientCmd("join_class medic");
+							break;
+						case 3:
+							CurrentXMenu = Main;
+							engine->ClientCmd("join_class sniper");
+							break;
+						case 4:
+							CurrentXMenu = Main;
+							engine->ClientCmd("join_class spy");
+							break;
+						case 5:
+							CurrentXMenu = ClassSelect;
+							GestureMenuIndex = 1;
+							break;
+						case 6:
+							CurrentXMenu = Main;
+							engine->ClientCmd("changeteam");
+							break;
+						default:
+							CurrentXMenu = Main;
+							break;
+						}
+						break;
+					}
+				case Voice1:
+				case Voice2:
+				case Voice3:
+					CurrentXMenu = Main;
+					break;
+			}
+		}
+	}
 
 	return;
 }
@@ -1802,7 +1997,8 @@ Vector VRMOD_GetRecommendedViewmodelAbsPos()
 #else								// Server specific
 	VModelPos = VRMOD_GetRightControllerAbsPos() - WeaponOffset;
 #endif
-	return VR_controller_right_pos_abs;
+	//return VR_controller_right_pos_abs;
+	return VModelPos;
 }
 
 
