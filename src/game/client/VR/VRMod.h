@@ -62,6 +62,6 @@ void RenderHUDQuad(bool bBlackout, bool bTranslucent);
 
 #if defined( CLIENT_DLL )			// Client specific.
 void RenderVRCrosshair();
-
-void RenderGestureQuads();
+void VRMOD_DrawLaserPointer();
+void RenderGestureQuads(int NumItems);
 #endif

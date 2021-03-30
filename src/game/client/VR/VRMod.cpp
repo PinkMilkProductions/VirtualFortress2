@@ -15,16 +15,19 @@
 #include <vector>
 //#include "c_baseentity.h"		// Recently added for headtracking calculations
 
-
 #if defined( CLIENT_DLL )			// Client specific.
 	#include "c_tf_player.h"		// Recently added for headtracking calculations
 	#include <baseviewmodel_shared.h>
+	#include <iviewrender_beams.h>	// For testing out the laser pointer 2D menu interaction
+	#include "tf_viewport.h"		// For checking if we're in any menus
 #else
 	#include "tf_player.h"
 #endif
 
-
 #include <VRMod.h>
+#include <vgui/IInput.h>				// For testing out the laser pointer 2D menu interaction
+#include <vgui_controls/Controls.h>		// For testing out the laser pointer 2D menu interaction
+
 
 
 #pragma comment (lib, "d3d11.lib")
@@ -318,6 +321,7 @@ bool IsInXMenu = false;
 
 int GestureSelection = 0;
 int GestureMenuIndex = 1;													// For gesture menu selection
+int GestureNumItems = 4;													// For gesture menu selection
 
 enum XMenu {Main, Voice1, Voice2, Voice3, ClassSelect};
 XMenu CurrentXMenu = Main;
@@ -1250,6 +1254,7 @@ void VRMOD_Process_input()
 				VRMOD_SetGestureOrigin(VR_controller_right_pos_abs, TrackedDevicesPoses[7].TrackedDevicePos);
 				engine->ClientCmd("r_drawviewmodel 0");
 				GestureMenuIndex = 1;
+				GestureNumItems = 4;
 				IsInTriggerMenu = true;
 			}
 			else if (Trigger_active_counter > 20)				// If we are holding down the trigger
@@ -1416,6 +1421,7 @@ void VRMOD_Process_input()
 			IsInXMenu = true;
 			VRMOD_SetGestureOrigin(VR_controller_left_pos_abs, TrackedDevicesPoses[6].TrackedDevicePos);
 			engine->ClientCmd("r_drawviewmodel 0");
+			GestureNumItems = 6;
 		}
 		else if (X_active_counter > 20)
 		{
@@ -1630,25 +1636,35 @@ void VRMOD_Process_input()
 }
 #endif
 
-
+#if defined( CLIENT_DLL )			// Client specific.
 // --------------------------------------------------------------------
 // Purpose: Returns the bounds in world space where the game should 
 //			position the HUD.
 // --------------------------------------------------------------------
 void GetHUDBounds(Vector *pViewer, Vector *pUL, Vector *pUR, Vector *pLL, Vector *pLR)
 {
-
-	Vector vHalfWidth = (-VRMOD_GetPlayerRight()) * -32;
-	Vector vHalfHeight = VRMOD_GetPlayerUp() * 18;
-	Vector vHUDOrigin = VRMOD_GetViewOriginLeft() + VRMOD_GetPlayerForward() * 40;
-
-	*pViewer = VRMOD_GetViewOriginLeft();
-	*pUL = vHUDOrigin - vHalfWidth + vHalfHeight;
-	*pUR = vHUDOrigin + vHalfWidth + vHalfHeight;
-	*pLL = vHUDOrigin - vHalfWidth - vHalfHeight;
-	*pLR = vHUDOrigin + vHalfWidth - vHalfHeight;
+	Vector vHalfWidth;
+	Vector vHalfHeight;
+	Vector vHUDOrigin;
+	if (gViewPortInterface->GetActivePanel())		// If we're currently in any kind of menu (Main menu, Class select,...)
+	{
+		vHalfWidth = (-VRMOD_GetPlayerRight()) * -160;
+		vHalfHeight = VRMOD_GetPlayerUp() * 90;
+		vHUDOrigin = VRMOD_GetViewOriginLeft() + VRMOD_GetPlayerForward() * 200;
+	}
+	else											// If it's just the default in-game HUD
+	{
+		vHalfWidth = (-VRMOD_GetPlayerRight()) * -32;
+		vHalfHeight = VRMOD_GetPlayerUp() * 18;
+		vHUDOrigin = VRMOD_GetViewOriginLeft() + VRMOD_GetPlayerForward() * 40;
+	}
+		*pViewer = VRMOD_GetViewOriginLeft();
+		*pUL = vHUDOrigin - vHalfWidth + vHalfHeight;
+		*pUR = vHUDOrigin + vHalfWidth + vHalfHeight;
+		*pLL = vHUDOrigin - vHalfWidth - vHalfHeight;
+		*pLR = vHUDOrigin + vHalfWidth - vHalfHeight;
 }
-
+#endif
 
 #if defined( CLIENT_DLL )			// Client specific.
 // --------------------------------------------------------------------
@@ -1768,9 +1784,10 @@ void RenderHUDQuad(bool bBlackout, bool bTranslucent)
 		}
 	}
 	RenderVRCrosshair();
+	VRMOD_DrawLaserPointer();
 	if (GestureMenuIndex != 0)
 	{
-		RenderGestureQuads();
+		RenderGestureQuads(GestureNumItems);
 	}
 }
 #endif
@@ -1835,37 +1852,19 @@ void RenderVRCrosshair()
 
 
 #if defined( CLIENT_DLL )			// Client specific.
-void GetGestureQuadsBounds(Vector *pUL, Vector *pUR, Vector *pLL, Vector *pLR, int i, Vector Forward, Vector Right, Vector Up, float MinSelectionDistance = 4.0f)
+void GetGestureQuadsBounds(Vector *pUL, Vector *pUR, Vector *pLL, Vector *pLR, int i, int NumItems, float MinSelectionDistance = 4.0f)
 {
 	
-	Vector vHalfWidth = VR_hmd_right * 6;
-	Vector vHalfHeight = VR_hmd_up * 6;
+	//new entindex = CreateEntityByName("func_brush");
+
+	Vector vHalfWidth = VR_hmd_right * 4;
+	Vector vHalfHeight = VR_hmd_up * 4;
 	Vector vHUDOrigin;
 
-	switch (i)
-	{
-	case 0:
-		vHUDOrigin = GestureOrigin + (-Right) * MinSelectionDistance;
-		break;
-	case 1:
-		vHUDOrigin = GestureOrigin + Right * MinSelectionDistance;
-		break;
-	case 2:
-		vHUDOrigin = GestureOrigin + (-Forward) * MinSelectionDistance;
-		break;
-	case 3:
-		vHUDOrigin = GestureOrigin + Forward * MinSelectionDistance;
-		break;
-	case 4:
-		vHUDOrigin = GestureOrigin + (-Up) * MinSelectionDistance;
-		break;
-	case 5:
-		vHUDOrigin = GestureOrigin + Up * MinSelectionDistance;
-		break;
-	default:
-		vHUDOrigin = GestureOrigin;
-		break;
-	}
+	QAngle RadialRotation = QAngle(360 * i / NumItems, 0, 0);
+	Vector RadialPos;
+	VectorRotate(GestureUp, RadialRotation, RadialPos);
+	vHUDOrigin = GestureOrigin + RadialPos * MinSelectionDistance;
 
 	*pUL = vHUDOrigin - vHalfWidth + vHalfHeight;
 	*pUR = vHUDOrigin + vHalfWidth + vHalfHeight;
@@ -1878,14 +1877,14 @@ void GetGestureQuadsBounds(Vector *pUL, Vector *pUR, Vector *pLL, Vector *pLR, i
 
 
 #if defined( CLIENT_DLL )			// Client specific.
-void RenderGestureQuads()
+void RenderGestureQuads(int NumItems)
 {
-	for (int i = 0; i < 6; i++)
+	for (int i = 0; i < NumItems; i++)
 	{
 		if (!GestureQuadMaterials[i].empty())
 		{
 			Vector vUL, vUR, vLL, vLR;
-			GetGestureQuadsBounds(&vUL, &vUR, &vLL, &vLR, i, GestureForward, GestureRight, GestureUp, 10.0f);
+			GetGestureQuadsBounds(&vUL, &vUR, &vLL, &vLR, i, NumItems, 15.0f);
 
 			CMatRenderContextPtr pRenderContext(materials);
 
@@ -2066,3 +2065,46 @@ Vector VRMOD_GetPlayerUp()
 {
 	return Player_up;
 }
+
+#if defined( CLIENT_DLL )			// Client specific.
+void VRMOD_DrawLaserPointer()
+{
+	//vgui::input()->SetCursorPos(200, 100);
+
+	Vector LaserpointerForward, LaserpointerRight, LaserpointerUp;
+	AngleVectors(VRMOD_GetRecommendedViewmodelAbsAngle(), &LaserpointerForward, &LaserpointerRight, &LaserpointerUp);			// Get the direction vectors from the Viewmodel QAngle
+
+
+	BeamInfo_t Laserpointer_Beaminfo;
+
+	Laserpointer_Beaminfo.m_nType = TE_BEAMPOINTS;
+	Laserpointer_Beaminfo.m_pszModelName = "sprites/physbeam.vmt";
+	Laserpointer_Beaminfo.m_nModelIndex = -1; // will be set by CreateBeamPoints if its -1
+	Laserpointer_Beaminfo.m_flHaloScale = 0.0f;
+	Laserpointer_Beaminfo.m_flLife = 0.017f;
+	Laserpointer_Beaminfo.m_flWidth = 0.5f;
+	Laserpointer_Beaminfo.m_flEndWidth = 0.5f;
+	Laserpointer_Beaminfo.m_flFadeLength = 0.0f;
+	Laserpointer_Beaminfo.m_flAmplitude = 2.0f;
+	Laserpointer_Beaminfo.m_flBrightness = 255.f;
+	Laserpointer_Beaminfo.m_flSpeed = 0.6f;
+	Laserpointer_Beaminfo.m_nStartFrame = 0;
+	Laserpointer_Beaminfo.m_flFrameRate = 0.f;
+	Laserpointer_Beaminfo.m_flRed = 255.f;
+	Laserpointer_Beaminfo.m_flGreen = 0.f;
+	Laserpointer_Beaminfo.m_flBlue = 0.f;
+	Laserpointer_Beaminfo.m_nSegments = 2;
+	Laserpointer_Beaminfo.m_bRenderable = true;
+	Laserpointer_Beaminfo.m_nFlags = 0;
+	Laserpointer_Beaminfo.m_vecStart = VRMOD_GetRecommendedViewmodelAbsPos();
+	Laserpointer_Beaminfo.m_vecEnd = VRMOD_GetRecommendedViewmodelAbsPos() + LaserpointerForward * 500;
+
+
+	Beam_t* Laserpointer_Beam = beams->CreateBeamPoints(Laserpointer_Beaminfo);
+
+	if (Laserpointer_Beam)
+		beams->DrawBeam(Laserpointer_Beam); //renderBeam func
+
+	return;
+}
+#endif

@@ -95,7 +95,7 @@ CON_COMMAND( showmapinfo, "Show map info panel" )
 			gViewPortInterface->ShowPanel( PANEL_CLASS_BLUE, false );
 			gViewPortInterface->ShowPanel( PANEL_INTRO, false );
 			gViewPortInterface->ShowPanel( PANEL_ROUNDINFO, false );
-
+			
 			gViewPortInterface->ShowPanel( PANEL_MAPINFO, true );
 		}
 	}
