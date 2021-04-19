@@ -20,6 +20,7 @@
 	#include <baseviewmodel_shared.h>
 	#include <iviewrender_beams.h>	// For testing out the laser pointer 2D menu interaction
 	#include "tf_viewport.h"		// For checking if we're in any menus
+	#include "VRModClasses.h"		// For accessing our own custom classes
 #else
 	#include "tf_player.h"
 #endif
@@ -319,18 +320,22 @@ int X_active_counter = 0;
 bool IsInTriggerMenu = false;
 bool IsInXMenu = false;
 
-int GestureSelection = 0;
-int GestureMenuIndex = 1;													// For gesture menu selection
-int GestureNumItems = 4;													// For gesture menu selection
+//int GestureSelection = 0;
+//int GestureMenuIndex = 1;													// For gesture menu selection
+//int GestureNumItems = 4;													// For gesture menu selection
+//
+//enum XMenu {Main, Voice1, Voice2, Voice3, ClassSelect};
+//XMenu CurrentXMenu = Main;
+//
+//Vector GestureOrigin = Vector(0, 0, 0);
+//Vector GestureOriginLocal = Vector(0, 0, 0);
+//std::string GestureQuadMaterials[6] = {"", "", "", "", "", ""};
+//Vector GestureForward, GestureRight, GestureUp;
+//float GestureMinSelectionDistance = 8.0f;
 
-enum XMenu {Main, Voice1, Voice2, Voice3, ClassSelect};
-XMenu CurrentXMenu = Main;
-
-Vector GestureOrigin = Vector(0, 0, 0);
-Vector GestureOriginLocal = Vector(0, 0, 0);
-std::string GestureQuadMaterials[6] = {"", "", "", "", "", ""};
-Vector GestureForward, GestureRight, GestureUp;
-float GestureMinSelectionDistance = 8.0f;
+bool DrawLaser = false;
+Vector LaserOrigin = Vector(0, 0, 0);
+Vector LaserEnd = Vector(1, 1, 1);
 
 
 Vector WeaponOffset = Vector(0, 0, 0);										// For viewmodel and shooting positions stuff
@@ -1102,6 +1107,7 @@ void VRMOD_SetGestureOrigin(Vector pos, Vector posLocal)
 #if defined( CLIENT_DLL )			// Client specific.
 int VRMOD_SelectGestureDirection(Vector GesturePos, Vector Forward, Vector Right, Vector Up)
 {
+
 	int SelectedDirection = 0;		// Default value = At center, not far enough to select a real direction
 	Vector GestureDistance = GesturePos - GestureOrigin;
 
@@ -1252,17 +1258,12 @@ void VRMOD_Process_input()
 			if (Trigger_active_counter == 20)					// If we just started holding down the trigger
 			{
 				VRMOD_SetGestureOrigin(VR_controller_right_pos_abs, TrackedDevicesPoses[7].TrackedDevicePos);
+				LaserOrigin = GestureOrigin;
 				engine->ClientCmd("r_drawviewmodel 0");
+
 				GestureMenuIndex = 1;
 				GestureNumItems = 4;
-				IsInTriggerMenu = true;
-			}
-			else if (Trigger_active_counter > 20)				// If we are holding down the trigger
-			{
 				GestureMinSelectionDistance = 10.0f;
-
-				//GestureSelection = VRMOD_SelectGestureDirection(TrackedDevicesPoses[7].TrackedDevicePos, VR_controller_right_forward, VR_controller_right_right, VR_controller_right_up);
-				GestureSelection = VRMOD_SelectGestureDirection(VR_controller_right_pos_abs, VR_hmd_forward, VR_hmd_right, VR_hmd_up);
 
 				GestureQuadMaterials[0] = "hud/eng_build_sentry_blueprint";
 				GestureQuadMaterials[1] = "hud/eng_build_dispenser_blueprint";
@@ -1270,6 +1271,26 @@ void VRMOD_Process_input()
 				GestureQuadMaterials[3] = "hud/eng_build_tele_exit_blueprint";
 				GestureQuadMaterials[4] = "";
 				GestureQuadMaterials[5] = "";
+
+
+
+				IsInTriggerMenu = true;
+			}
+			else if (Trigger_active_counter > 20)				// If we are holding down the trigger
+			{
+				/*GestureMinSelectionDistance = 10.0f;*/
+
+				//GestureSelection = VRMOD_SelectGestureDirection(TrackedDevicesPoses[7].TrackedDevicePos, VR_controller_right_forward, VR_controller_right_right, VR_controller_right_up);
+				GestureSelection = VRMOD_SelectGestureDirection(VR_controller_right_pos_abs, VR_hmd_forward, VR_hmd_right, VR_hmd_up);
+				
+				LaserEnd = VR_controller_right_pos_abs;
+
+				//GestureQuadMaterials[0] = "hud/eng_build_sentry_blueprint";
+				//GestureQuadMaterials[1] = "hud/eng_build_dispenser_blueprint";
+				//GestureQuadMaterials[2] = "hud/eng_build_tele_entrance_blueprint";
+				//GestureQuadMaterials[3] = "hud/eng_build_tele_exit_blueprint";
+				//GestureQuadMaterials[4] = "";
+				//GestureQuadMaterials[5] = "";
 
 				//AngleVectors(VRMOD_GetRightControllerAbsAngle(), &GestureForward, &GestureRight, &GestureUp);
 
@@ -1420,6 +1441,7 @@ void VRMOD_Process_input()
 		{
 			IsInXMenu = true;
 			VRMOD_SetGestureOrigin(VR_controller_left_pos_abs, TrackedDevicesPoses[6].TrackedDevicePos);
+			LaserOrigin = GestureOrigin;
 			engine->ClientCmd("r_drawviewmodel 0");
 			GestureNumItems = 6;
 		}
@@ -1428,7 +1450,12 @@ void VRMOD_Process_input()
 			GestureMinSelectionDistance = 0.05f;
 
 			GestureSelection = VRMOD_SelectGestureDirection(VR_controller_left_pos_abs, VR_controller_left_forward, VR_controller_left_right, VR_controller_left_up);
-			AngleVectors(VR_controller_left_ang_abs, &GestureForward, &GestureRight, &GestureUp);
+			LaserEnd = VR_controller_left_pos_abs;
+			//AngleVectors(VR_controller_left_ang_abs, &GestureForward, &GestureRight, &GestureUp);
+
+			GestureForward = VR_hmd_forward;
+			GestureRight = VR_hmd_right;
+			GestureUp = VR_hmd_up;
 
 			switch (CurrentXMenu)
 			{
@@ -1651,9 +1678,17 @@ void GetHUDBounds(Vector *pViewer, Vector *pUL, Vector *pUR, Vector *pLL, Vector
 		vHalfWidth = (-VRMOD_GetPlayerRight()) * -160;
 		vHalfHeight = VRMOD_GetPlayerUp() * 90;
 		vHUDOrigin = VRMOD_GetViewOriginLeft() + VRMOD_GetPlayerForward() * 200;
+
+		//Set variables for the 2D VR menu laser pointer
+		Vector LaserpointerForward, LaserpointerRight, LaserpointerUp;
+		AngleVectors(VRMOD_GetRecommendedViewmodelAbsAngle(), &LaserpointerForward, &LaserpointerRight, &LaserpointerUp);			// Get the direction vectors from the Viewmodel QAngle
+		LaserOrigin = VRMOD_GetRecommendedViewmodelAbsPos();
+		LaserEnd = VRMOD_GetRecommendedViewmodelAbsPos() + LaserpointerForward * 500;
+		DrawLaser = true;
 	}
 	else											// If it's just the default in-game HUD
 	{
+		DrawLaser = (GestureMenuIndex != 0);
 		vHalfWidth = (-VRMOD_GetPlayerRight()) * -32;
 		vHalfHeight = VRMOD_GetPlayerUp() * 18;
 		vHUDOrigin = VRMOD_GetViewOriginLeft() + VRMOD_GetPlayerForward() * 40;
@@ -1784,11 +1819,15 @@ void RenderHUDQuad(bool bBlackout, bool bTranslucent)
 		}
 	}
 	RenderVRCrosshair();
-	VRMOD_DrawLaserPointer();
 	if (GestureMenuIndex != 0)
 	{
 		RenderGestureQuads(GestureNumItems);
 	}
+	if (DrawLaser)
+	{
+		VRMOD_DrawLaserPointer();
+	}
+
 }
 #endif
 
@@ -1851,81 +1890,78 @@ void RenderVRCrosshair()
 #endif
 
 
-#if defined( CLIENT_DLL )			// Client specific.
-void GetGestureQuadsBounds(Vector *pUL, Vector *pUR, Vector *pLL, Vector *pLR, int i, int NumItems, float MinSelectionDistance = 4.0f)
-{
-	
-	//new entindex = CreateEntityByName("func_brush");
-
-	Vector vHalfWidth = VR_hmd_right * 4;
-	Vector vHalfHeight = VR_hmd_up * 4;
-	Vector vHUDOrigin;
-
-	QAngle RadialRotation = QAngle(360 * i / NumItems, 0, 0);
-	Vector RadialPos;
-	VectorRotate(GestureUp, RadialRotation, RadialPos);
-	vHUDOrigin = GestureOrigin + RadialPos * MinSelectionDistance;
-
-	*pUL = vHUDOrigin - vHalfWidth + vHalfHeight;
-	*pUR = vHUDOrigin + vHalfWidth + vHalfHeight;
-	*pLL = vHUDOrigin - vHalfWidth - vHalfHeight;
-	*pLR = vHUDOrigin + vHalfWidth - vHalfHeight;
-
-	return;
-}
-#endif
+//#if defined( CLIENT_DLL )			// Client specific.
+//void GetGestureQuadsBounds(Vector *pUL, Vector *pUR, Vector *pLL, Vector *pLR, int i, int NumItems, float MinSelectionDistance = 4.0f)
+//{
+//	Vector vHalfWidth = VR_hmd_right * 4;
+//	Vector vHalfHeight = VR_hmd_up * 4;
+//	Vector vHUDOrigin;
+//
+//	QAngle RadialRotation = QAngle(360 * i / NumItems, 0, 0);
+//	Vector RadialPos;
+//	VectorRotate(GestureUp, RadialRotation, RadialPos);
+//	vHUDOrigin = GestureOrigin + RadialPos * MinSelectionDistance;
+//
+//	*pUL = vHUDOrigin - vHalfWidth + vHalfHeight;
+//	*pUR = vHUDOrigin + vHalfWidth + vHalfHeight;
+//	*pLL = vHUDOrigin - vHalfWidth - vHalfHeight;
+//	*pLR = vHUDOrigin + vHalfWidth - vHalfHeight;
+//
+//	return;
+//}
+//#endif
 
 
-#if defined( CLIENT_DLL )			// Client specific.
-void RenderGestureQuads(int NumItems)
-{
-	for (int i = 0; i < NumItems; i++)
-	{
-		if (!GestureQuadMaterials[i].empty())
-		{
-			Vector vUL, vUR, vLL, vLR;
-			GetGestureQuadsBounds(&vUL, &vUR, &vLL, &vLR, i, NumItems, 15.0f);
-
-			CMatRenderContextPtr pRenderContext(materials);
-
-			pRenderContext->OverrideDepthEnable(true, true);
-
-			IMaterial *mymat = NULL;
-			mymat = materials->FindMaterial(GestureQuadMaterials[i].c_str(), TEXTURE_GROUP_VGUI);
-
-			Assert(!mymat->IsErrorMaterial());
-
-			IMesh *pMesh = pRenderContext->GetDynamicMesh(true, NULL, NULL, mymat);
-
-			CMeshBuilder meshBuilder;
-			meshBuilder.Begin(pMesh, MATERIAL_TRIANGLE_STRIP, 2);
-
-			meshBuilder.Position3fv(vLR.Base());
-			meshBuilder.TexCoord2f(0, 1, 1);
-			meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
-
-			meshBuilder.Position3fv(vLL.Base());
-			meshBuilder.TexCoord2f(0, 0, 1);
-			meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
-
-			meshBuilder.Position3fv(vUR.Base());
-			meshBuilder.TexCoord2f(0, 1, 0);
-			meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
-
-			meshBuilder.Position3fv(vUL.Base());
-			meshBuilder.TexCoord2f(0, 0, 0);
-			meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
-
-			meshBuilder.End();
-			pMesh->Draw();
-
-			pRenderContext->OverrideDepthEnable(false, false);
-		}
-	}
-
-	return;
-}
-#endif
+//#if defined( CLIENT_DLL )			// Client specific.
+//void RenderGestureQuads(int NumItems)
+//{
+//	for (int i = 0; i < NumItems; i++)
+//	{
+//		if (!GestureQuadMaterials[i].empty())
+//		{
+//			Vector vUL, vUR, vLL, vLR;
+//			GetGestureQuadsBounds(&vUL, &vUR, &vLL, &vLR, i, NumItems, 15.0f);
+//
+//			CMatRenderContextPtr pRenderContext(materials);
+//
+//			pRenderContext->OverrideDepthEnable(true, true);
+//
+//			IMaterial *mymat = NULL;
+//			mymat = materials->FindMaterial(GestureQuadMaterials[i].c_str(), TEXTURE_GROUP_VGUI);
+//
+//			Assert(!mymat->IsErrorMaterial());
+//
+//			IMesh *pMesh = pRenderContext->GetDynamicMesh(true, NULL, NULL, mymat);
+//
+//			CMeshBuilder meshBuilder;
+//			meshBuilder.Begin(pMesh, MATERIAL_TRIANGLE_STRIP, 2);
+//
+//			meshBuilder.Position3fv(vLR.Base());
+//			meshBuilder.TexCoord2f(0, 1, 1);
+//			meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
+//
+//			meshBuilder.Position3fv(vLL.Base());
+//			meshBuilder.TexCoord2f(0, 0, 1);
+//			meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
+//
+//			meshBuilder.Position3fv(vUR.Base());
+//			meshBuilder.TexCoord2f(0, 1, 0);
+//			meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
+//
+//			meshBuilder.Position3fv(vUL.Base());
+//			meshBuilder.TexCoord2f(0, 0, 0);
+//			meshBuilder.AdvanceVertexF<VTX_HAVEPOS, 1>();
+//
+//			meshBuilder.End();
+//			pMesh->Draw();
+//
+//			pRenderContext->OverrideDepthEnable(false, false);
+//		}
+//	}
+//
+//	return;
+//}
+//#endif
 
 void VRMOD_Show_poses()
 {
@@ -2096,8 +2132,8 @@ void VRMOD_DrawLaserPointer()
 	Laserpointer_Beaminfo.m_nSegments = 2;
 	Laserpointer_Beaminfo.m_bRenderable = true;
 	Laserpointer_Beaminfo.m_nFlags = 0;
-	Laserpointer_Beaminfo.m_vecStart = VRMOD_GetRecommendedViewmodelAbsPos();
-	Laserpointer_Beaminfo.m_vecEnd = VRMOD_GetRecommendedViewmodelAbsPos() + LaserpointerForward * 500;
+	Laserpointer_Beaminfo.m_vecStart = LaserOrigin;
+	Laserpointer_Beaminfo.m_vecEnd = LaserEnd;
 
 
 	Beam_t* Laserpointer_Beam = beams->CreateBeamPoints(Laserpointer_Beaminfo);
